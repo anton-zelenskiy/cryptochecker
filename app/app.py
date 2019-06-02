@@ -15,11 +15,11 @@ bot = telebot.TeleBot(API_TOKEN)
 logger = telebot.logger
 telebot.logger.setLevel(logging.INFO)
 
-server = Flask(__name__)
+app = Flask(__name__)
 
 
 # Empty webserver index, return nothing, just http 200
-@server.route('/', methods=['GET', 'HEAD'])
+@app.route('/', methods=['GET', 'HEAD'])
 def index():
     bot.remove_webhook()
     time.sleep(0.1)
@@ -29,7 +29,7 @@ def index():
 
 
 # Process webhook calls
-@server.route(WEBHOOK_URL_PATH, methods=['POST'])
+@app.route(WEBHOOK_URL_PATH, methods=['POST'])
 def webhook():
     if flask.request.headers.get('content-type') == 'application/json':
         json_string = flask.request.get_data().decode('utf-8')
@@ -55,4 +55,4 @@ def echo_message(message):
 
 
 if __name__ == '__main__':
-    server.run(host='0.0.0.0')
+    app.run(host='0.0.0.0')
