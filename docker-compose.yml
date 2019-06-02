@@ -18,9 +18,9 @@ services:
       - 80:80
       - 443:443
     volumes:
-      - ./data/conf:/etc/nginx/conf.d
-      - ./data/certbot/conf:/etc/letsencrypt
-      - ./data/certbot/www:/var/www/certbot
+      - .infra-nginx/data/conf:/etc/nginx/conf.d
+      - .infra-nginx/data/certbot/conf:/etc/letsencrypt
+      - .infra-nginx/data/certbot/www:/var/www/certbot
     depends_on:
       - app
     networks:
@@ -31,8 +31,8 @@ services:
     image: certbot/certbot
     restart: unless-stopped
     volumes:
-      - ./data/certbot/conf:/etc/letsencrypt
-      - ./data/certbot/www:/var/www/certbot
+      - .infra-nginx/data/certbot/conf:/etc/letsencrypt
+      - .infra-nginx/data/certbot/www:/var/www/certbot
     networks:
       - custom_network
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
