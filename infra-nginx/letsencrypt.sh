@@ -1,6 +1,6 @@
 #!/bin/sh
 
-domains=(zstoreit.info www.zstoreit.info)
+domains=zstoreit.info
 rsa_key_size=4096
 data_path="./data/certbot"
 email="antonfewwt@gmail.com"
