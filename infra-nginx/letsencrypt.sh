@@ -10,7 +10,4 @@ docker run -it --rm --name certbot \
    --webroot \
    --expand \
    --webroot-path=/data/letsencrypt \
-   #--email <example@google.com> \
    -d zstoreit.info
-
-docker exec nginx nginx -s reload
