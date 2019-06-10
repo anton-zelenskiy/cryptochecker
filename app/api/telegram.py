@@ -1,7 +1,7 @@
 import requests
 import json
 
-from app.config import API_TOKEN
+from ..config import API_TOKEN
 
 
 class TelegramAPI:

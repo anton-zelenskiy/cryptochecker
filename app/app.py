@@ -4,7 +4,7 @@ import flask
 import logging
 import telebot
 
-from app.api.telegram import TelegramAPI
+from .api.telegram import TelegramAPI
 
 API_TOKEN = '825274529:AAFZVv3DYYmCvSBUl8HI3D8FbhiCNSudMvc'
 WEBHOOK_HOST = 'zstoreit.info'
