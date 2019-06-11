@@ -5,12 +5,12 @@ services:
   app:
     container_name: app
     restart: always
-    build: ./app
+    build: ./project
     ports:
       - 8000:8000
     networks:
       - custom_network
-    command: gunicorn -w 1 -b :8000 app:app
+    command: gunicorn -w 1 -b :8000 project:app
 
   nginx:
     image: nginx:alpine
