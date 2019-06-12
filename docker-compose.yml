@@ -10,7 +10,7 @@ services:
       - 8000:8000
     networks:
       - custom_network
-    command: gunicorn -w 1 -b --log-level=DEBUG :8000 app:app
+    command: gunicorn -w 1 -b :8000 --log-level=DEBUG app:app
 
   nginx:
     image: nginx:alpine
