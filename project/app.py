@@ -41,7 +41,10 @@ def get_w():
 
 @app.route(f'{WEBHOOK_URL_PATH}set', methods=['GET'])
 def set_w():
-    res = tg_api.set_webhook()
+    params = {
+        'url': f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}updates'
+    }
+    res = tg_api.set_webhook(params)
 
     return f'Set-Result: {res}'
 
@@ -53,16 +56,21 @@ def del_w():
     return f'Delete-Result: {res}'
 
 
-# Process webhook calls
-@app.route(WEBHOOK_URL_PATH, methods=['POST'])
-def webhook():
-    if flask.request.headers.get('content-type') == 'application/json':
-        json_string = flask.request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return ''
-    else:
-        flask.abort(403)
+@app.route(f'{WEBHOOK_URL_PATH}updates', methods=['POST'])
+def updates():
+    print('update: ', flask.request.get_data().decode('utf-8'))
+    return 'get update'
+
+# # Process webhook calls
+# @app.route(WEBHOOK_URL_PATH, methods=['POST'])
+# def webhook():
+#     if flask.request.headers.get('content-type') == 'application/json':
+#         json_string = flask.request.get_data().decode('utf-8')
+#         update = telebot.types.Update.de_json(json_string)
+#         bot.process_new_updates([update])
+#         return ''
+#     else:
+#         flask.abort(403)
 
 
 # Handle '/start' and '/help'
