@@ -18,6 +18,7 @@ services:
       - 80:80
       - 443:443
     volumes:
+      - ./infra-nginx/data/nginx.conf:/etc/nginx/nginx.conf
       - ./infra-nginx/data/conf:/etc/nginx/conf.d
       - ./infra-nginx/data/certbot/conf:/etc/letsencrypt
       - ./infra-nginx/data/certbot/www:/var/www/certbot
