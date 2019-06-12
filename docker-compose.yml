@@ -10,9 +10,7 @@ services:
       - 8000:8000
     networks:
       - custom_network
-    environment:
-      PYTHONPATH: '/home/project' 
-    command: gunicorn -w 1 -b :8000 app:app --pythonpath "/home/project"
+    command: gunicorn -w 1 -b :8000 app:app
 
   nginx:
     image: nginx:alpine

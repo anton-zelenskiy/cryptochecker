@@ -5,7 +5,6 @@ WORKDIR /home/project
 COPY requirements.txt /home/project
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ENV PYTHONPATH /home/project
-ENV PYTHONPATH="$PYTHONPATH:/home/project"
+ENV PYTHONPATH /home/
 
 COPY . /home/project

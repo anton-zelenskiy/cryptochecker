@@ -4,7 +4,7 @@ import flask
 import logging
 import telebot
 
-# from project.api.telegram import TelegramAPI
+from project.api.telegram import TelegramAPI
 
 API_TOKEN = '825274529:AAFZVv3DYYmCvSBUl8HI3D8FbhiCNSudMvc'
 WEBHOOK_HOST = 'zstoreit.info'
@@ -19,7 +19,7 @@ telebot.logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
 
-# tg_api = TelegramAPI()
+tg_api = TelegramAPI()
 
 
 # Empty webserver index, return nothing, just http 200
