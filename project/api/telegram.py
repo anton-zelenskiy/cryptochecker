@@ -16,10 +16,10 @@ class TelegramAPI:
     def __init__(self):
         pass
 
-    def set_webhook(self):
+    def set_webhook(self, params):
         method = 'setWebhook'
 
-        return self._make_request(method, {})
+        return self._make_request(method, params)
 
     def delete_webhook(self):
         method = 'deleteWebhook'
@@ -33,13 +33,13 @@ class TelegramAPI:
 
     def _make_request(self, method, data):
         """Осуществляет запрос. """
-        r = requests.post(
+        r = requests.get(
             url=self.request_url.format(
                 api_token=API_TOKEN,
                 method=method
             ),
             headers=self.headers,
-            data=json.dumps(data)
+            params=json.dumps(data)
         )
         r.raise_for_status()
 
