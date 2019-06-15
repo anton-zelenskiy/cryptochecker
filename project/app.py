@@ -27,7 +27,7 @@ def index():
 
 
 @app.route(f'{WEBHOOK_URL_PATH}get/', methods=['GET'])
-def get_w():
+def get_me():
     res = tg_api.get_webhook_info()
 
     return f'Get-Result: {res}'
