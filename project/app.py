@@ -66,12 +66,15 @@ def updates():
 
     update = parse_update(response)
 
+    keyboard = json.dumps({
+        'keyboard': ['/ss']
+    })
+
     data = {
         'chat_id': update.message.chat.id,
         'text': 'Привет!',
-        'reply_markup': {
-            'keyboard': ['/ss']
-        }
+        'reply_keyboard': keyboard
+
     }
     if update.message.text in ['/start', '/help']:
         tg_api.send_message(data)
