@@ -67,7 +67,7 @@ def updates():
     update = parse_update(response)
 
     keyboard = json.dumps({
-        'keyboard': ['/ss']
+        'keyboard': [{'text': '/ss'}, {'text': 'ss'}]
     })
 
     data = {
