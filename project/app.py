@@ -1,12 +1,11 @@
 from flask import Flask
-import requests
 import flask
 import logging
 import telebot
 
 from project.api.telegram import TelegramAPI
+from .config import API_TOKEN
 
-API_TOKEN = '825274529:AAFZVv3DYYmCvSBUl8HI3D8FbhiCNSudMvc'
 WEBHOOK_HOST = 'zstoreit.info'
 WEBHOOK_PORT = 80
 
@@ -22,13 +21,8 @@ app = Flask(__name__)
 tg_api = TelegramAPI()
 
 
-# Empty webserver index, return nothing, just http 200
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
-    # bot.remove_webhook()
-    # time.sleep(0.1)
-    # bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH, max_connections=1)
-
     return 'Hi there!'
 
 
@@ -39,23 +33,17 @@ def get_w():
     return f'Get-Result: {res}'
 
 
-@app.route('/test/', methods=['GET'])
-def test():
-    r = requests.get(
-        url='https://football.kulichki.net'
-    )
-    r.raise_for_status()
+@app.route(f'{WEBHOOK_URL_PATH}getMe/', methods=['GET'])
+def get_w():
+    res = tg_api.get_me()
 
-    result = r.text
-    print(result)
-
-    return result
+    return f'Get-Result: {res}'
 
 
 @app.route(f'{WEBHOOK_URL_PATH}set/', methods=['GET'])
 def set_w():
     params = {
-        'url': f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}updates'
+        'url': f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}updates/'
     }
     res = tg_api.set_webhook(params)
 

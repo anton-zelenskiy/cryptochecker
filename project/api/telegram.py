@@ -7,7 +7,7 @@ from ..config import API_TOKEN
 class TelegramAPI:
     """"""
 
-    request_url = 'https://api.telegram.org/bot{api_token}/{method}/'
+    request_url = 'https://api.telegram.org/bot{api_token}/{method}'
     headers = {
         'Content-Type': 'application/json',
         'charset': 'utf-8',
@@ -15,6 +15,11 @@ class TelegramAPI:
 
     def __init__(self):
         pass
+
+    def get_me(self):
+        method = 'getMe'
+
+        return self._make_request(method, {})
 
     def set_webhook(self, params):
         method = 'setWebhook'
