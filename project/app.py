@@ -7,33 +7,41 @@ import sys
 from project.api.telegram import TelegramAPI
 from project.config import API_TOKEN
 
+from logging.config import dictConfig
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'DEBUG',
+        'handlers': ['wsgi']
+    }
+})
+
 WEBHOOK_HOST = 'zstoreit.info'
 WEBHOOK_PORT = 80
 
 WEBHOOK_URL_BASE = f'https://{WEBHOOK_HOST}:{WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{API_TOKEN}/'
 
-bot = telebot.TeleBot(API_TOKEN)
-logger = telebot.logger
-telebot.logger.setLevel(logging.INFO)
+# bot = telebot.TeleBot(API_TOKEN)
+# logger = telebot.logger
+# telebot.logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
-
-app.logger.addHandler(logging.StreamHandler(sys.stdout))
-app.logger.setLevel(logging.DEBUG)
 
 tg_api = TelegramAPI()
 
 
-@app.before_first_request
-def setup_logging():
-    if not app.debug:
-        app.logger.addHandler(logging.StreamHandler())
-        app.logger.setLevel(logging.INFO)
-
-
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
+    app.logger.debug('fdsfdsfdsfdsfsd')
     return 'Hi there!'
 
 
@@ -70,9 +78,8 @@ def del_w():
 
 @app.route(f'{WEBHOOK_URL_PATH}updates/', methods=['POST'])
 def updates():
-    print('fdsfdsfdsfdsf')
-    print(flask.request.get_data().decode('utf-8'))
-    app.logger.debug(f"update: {flask.request.get_data().decode('utf-8')}")
+    app.logger.debug(flask.request.get_data().decode('utf-8'))
+    app.logger.info(flask.request.get_data().decode('utf-8'))
     return 'get update'
 
 
@@ -88,18 +95,18 @@ def updates():
 #         flask.abort(403)
 
 
-# Handle '/start' and '/help'
-@bot.message_handler(commands=['help', 'start'])
-def send_welcome(message):
-    bot.reply_to(message,
-                 ("Hi there, I am EchoBot.\n"
-                  "I am here to echo your kind words back to you."))
-
-
-# Handle all other messages
-@bot.message_handler(func=lambda message: True, content_types=['text'])
-def echo_message(message):
-    bot.reply_to(message, message.text)
+# # Handle '/start' and '/help'
+# @bot.message_handler(commands=['help', 'start'])
+# def send_welcome(message):
+#     bot.reply_to(message,
+#                  ("Hi there, I am EchoBot.\n"
+#                   "I am here to echo your kind words back to you."))
+#
+#
+# # Handle all other messages
+# @bot.message_handler(func=lambda message: True, content_types=['text'])
+# def echo_message(message):
+#     bot.reply_to(message, message.text)
 
 
 if __name__ == '__main__':
