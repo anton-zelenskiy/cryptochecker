@@ -25,6 +25,13 @@ app.logger.setLevel(logging.DEBUG)
 tg_api = TelegramAPI()
 
 
+@app.before_first_request
+def setup_logging():
+    if not app.debug:
+        app.logger.addHandler(logging.StreamHandler())
+        app.logger.setLevel(logging.INFO)
+
+
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
     return 'Hi there!'
@@ -63,6 +70,8 @@ def del_w():
 
 @app.route(f'{WEBHOOK_URL_PATH}updates/', methods=['POST'])
 def updates():
+    print('fdsfdsfdsfdsf')
+    print(flask.request.get_data().decode('utf-8'))
     app.logger.debug(f"update: {flask.request.get_data().decode('utf-8')}")
     return 'get update'
 
