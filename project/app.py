@@ -2,6 +2,7 @@ from flask import Flask
 import flask
 import logging
 import telebot
+import sys
 
 from project.api.telegram import TelegramAPI
 from project.config import API_TOKEN
@@ -59,7 +60,7 @@ def del_w():
 
 @app.route(f'{WEBHOOK_URL_PATH}updates/', methods=['POST'])
 def updates():
-    print('update: ', flask.request.get_data().decode('utf-8'))
+    print(f"update: {flask.request.get_data().decode('utf-8')}", file=sys.stdout)
     return 'get update'
 
 # # Process webhook calls
