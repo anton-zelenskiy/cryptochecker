@@ -73,7 +73,7 @@ def updates():
     data = {
         'chat_id': update.message.chat.id,
         'text': 'Привет!',
-        'reply_keyboard': keyboard
+        'reply_markup': keyboard
 
     }
     if update.message.text in ['/start', '/help']:
