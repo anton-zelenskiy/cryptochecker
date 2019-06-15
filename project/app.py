@@ -19,6 +19,9 @@ telebot.logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
 
+app.logger.addHandler(logging.StreamHandler(sys.stdout))
+app.logger.setLevel(logging.DEBUG)
+
 tg_api = TelegramAPI()
 
 
@@ -60,8 +63,9 @@ def del_w():
 
 @app.route(f'{WEBHOOK_URL_PATH}updates/', methods=['POST'])
 def updates():
-    print(f"update: {flask.request.get_data().decode('utf-8')}", file=sys.stdout)
+    app.logger.debug(f"update: {flask.request.get_data().decode('utf-8')}")
     return 'get update'
+
 
 # # Process webhook calls
 # @app.route(WEBHOOK_URL_PATH, methods=['POST'])
