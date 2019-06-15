@@ -1,5 +1,6 @@
 import requests
 import json
+from urllib.parse import urlencode
 
 from ..config import API_TOKEN
 
@@ -44,7 +45,7 @@ class TelegramAPI:
                 method=method
             ),
             headers=self.headers,
-            params=json.dumps(data)
+            params=urlencode(data)
         )
         r.raise_for_status()
 
