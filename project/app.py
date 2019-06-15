@@ -1,5 +1,5 @@
 from flask import Flask
-import time
+import requests
 import flask
 import logging
 import telebot
@@ -32,14 +32,27 @@ def index():
     return 'Hi there!'
 
 
-@app.route(f'{WEBHOOK_URL_PATH}get', methods=['GET'])
+@app.route(f'{WEBHOOK_URL_PATH}get/', methods=['GET'])
 def get_w():
     res = tg_api.get_webhook_info()
 
     return f'Get-Result: {res}'
 
 
-@app.route(f'{WEBHOOK_URL_PATH}set', methods=['GET'])
+@app.route('/test/', methods=['GET'])
+def test():
+    r = requests.get(
+        url='https://football.kulichki.net'
+    )
+    r.raise_for_status()
+
+    result = r.text
+    print(result)
+
+    return result
+
+
+@app.route(f'{WEBHOOK_URL_PATH}set/', methods=['GET'])
 def set_w():
     params = {
         'url': f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}updates'
@@ -49,14 +62,14 @@ def set_w():
     return f'Set-Result: {res}'
 
 
-@app.route(f'{WEBHOOK_URL_PATH}delete', methods=['GET'])
+@app.route(f'{WEBHOOK_URL_PATH}delete/', methods=['GET'])
 def del_w():
     res = tg_api.delete_webhook()
 
     return f'Delete-Result: {res}'
 
 
-@app.route(f'{WEBHOOK_URL_PATH}updates', methods=['POST'])
+@app.route(f'{WEBHOOK_URL_PATH}updates/', methods=['POST'])
 def updates():
     print('update: ', flask.request.get_data().decode('utf-8'))
     return 'get update'
