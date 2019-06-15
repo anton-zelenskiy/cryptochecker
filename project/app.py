@@ -1,4 +1,5 @@
 import telebot
+import json
 
 from flask import Flask, request
 from logging.config import dictConfig
@@ -58,7 +59,10 @@ def del_w():
 
 @app.route(f'{WEBHOOK_URL_PATH}updates/', methods=['POST'])
 def updates():
-    response = request.get_data()
+    if not request.headers.get('content-type') == 'application/json':
+        return
+
+    response = json.loads(request.get_data())
 
     update = parse_update(response)
 
@@ -72,8 +76,8 @@ def updates():
     elif update.message.text == 'ss':
         tg_api.send_message(data)
 
-    #app.logger.info(request.get_data().decode('utf-8'))
-    return ''
+    # app.logger.info(request.get_data().decode('utf-8'))
+    return
 
 
 # # Process webhook calls
