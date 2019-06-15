@@ -46,6 +46,7 @@ class TelegramAPI:
             headers=self.headers,
             params=json.dumps(data)
         )
+        print('>>>', r.url)
         r.raise_for_status()
 
         result = r.json()
