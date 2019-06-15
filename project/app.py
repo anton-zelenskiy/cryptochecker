@@ -1,38 +1,19 @@
-from flask import Flask
-import flask
-import logging
 import telebot
-import sys
 
-from project.api.telegram import TelegramAPI
-from project.config import API_TOKEN
-
+from flask import Flask, request
 from logging.config import dictConfig
 
-dictConfig({
-    'version': 1,
-    'formatters': {'default': {
-        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
-    }},
-    'handlers': {'wsgi': {
-        'class': 'logging.StreamHandler',
-        'formatter': 'default'
-    }},
-    'root': {
-        'level': 'DEBUG',
-        'handlers': ['wsgi']
-    }
-})
+from project.api.telegram import TelegramAPI
+from project.config import API_TOKEN, DICT_CONFIG, WEBHOOK_HOST, WEBHOOK_PORT
+from project.utils import parse_update
 
-WEBHOOK_HOST = 'zstoreit.info'
-WEBHOOK_PORT = 443
+
+dictConfig(DICT_CONFIG)
 
 WEBHOOK_URL_BASE = f'https://{WEBHOOK_HOST}:{WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{API_TOKEN}/'
 
-# bot = telebot.TeleBot(API_TOKEN)
-# logger = telebot.logger
-# telebot.logger.setLevel(logging.INFO)
+bot = telebot.TeleBot(API_TOKEN)
 
 app = Flask(__name__)
 
@@ -41,7 +22,6 @@ tg_api = TelegramAPI()
 
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
-    app.logger.debug('fdsfdsfdsfdsfsd')
     return 'Hi there!'
 
 
@@ -78,9 +58,22 @@ def del_w():
 
 @app.route(f'{WEBHOOK_URL_PATH}updates/', methods=['POST'])
 def updates():
-    app.logger.debug(flask.request.get_data().decode('utf-8'))
-    app.logger.info(flask.request.get_data().decode('utf-8'))
-    return 'get update'
+    response = request.get_data()
+
+    update = parse_update(response)
+
+    data = {
+        'chat_id': update.message.chat.id,
+        'text': 'Привет!'
+    }
+    if update.message.text in ['/start', '/help']:
+        tg_api.send_message(data)
+
+    elif update.message.text == 'ss':
+        tg_api.send_message(data)
+
+    #app.logger.info(request.get_data().decode('utf-8'))
+    return ''
 
 
 # # Process webhook calls
@@ -93,8 +86,8 @@ def updates():
 #         return ''
 #     else:
 #         flask.abort(403)
-
-
+#
+#
 # # Handle '/start' and '/help'
 # @bot.message_handler(commands=['help', 'start'])
 # def send_welcome(message):

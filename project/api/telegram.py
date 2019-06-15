@@ -1,5 +1,4 @@
 import requests
-import json
 from urllib.parse import urlencode
 
 from ..config import API_TOKEN
@@ -22,18 +21,23 @@ class TelegramAPI:
 
         return self._make_request(method, {})
 
+    def get_webhook_info(self):
+        method = 'getWebhookInfo'
+
+        return self._make_request(method, {})
+
     def set_webhook(self, params):
         method = 'setWebhook'
 
         return self._make_request(method, params)
 
+    def send_message(self, params):
+        method = 'sendMessage'
+
+        return self._make_request(method, params)
+
     def delete_webhook(self):
         method = 'deleteWebhook'
-
-        return self._make_request(method, {})
-
-    def get_webhook_info(self):
-        method = 'getWebhookInfo'
 
         return self._make_request(method, {})
 
