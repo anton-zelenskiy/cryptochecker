@@ -25,7 +25,7 @@ dictConfig({
 })
 
 WEBHOOK_HOST = 'zstoreit.info'
-WEBHOOK_PORT = 80
+WEBHOOK_PORT = 443
 
 WEBHOOK_URL_BASE = f'https://{WEBHOOK_HOST}:{WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{API_TOKEN}/'
