@@ -60,7 +60,7 @@ def del_w():
 @app.route(f'{WEBHOOK_URL_PATH}updates/', methods=['POST'])
 def updates():
     if not request.headers.get('content-type') == 'application/json':
-        return
+        return 'Unexpected ContentType', 400
 
     response = json.loads(request.get_data())
 
@@ -68,16 +68,22 @@ def updates():
 
     data = {
         'chat_id': update.message.chat.id,
-        'text': 'Привет!'
+        'text': 'Привет!',
+        'reply_markup': {
+            'keyboard': ['/ss']
+        }
     }
     if update.message.text in ['/start', '/help']:
         tg_api.send_message(data)
 
-    elif update.message.text == 'ss':
-        tg_api.send_message(data)
+    elif update.message.text == '/ss':
+        tg_api.send_message({
+            'chat_id': update.message.chat.id,
+            'text': 'Кликнул по кнопке!',
+        })
 
     # app.logger.info(request.get_data().decode('utf-8'))
-    return
+    return ''
 
 
 # # Process webhook calls
