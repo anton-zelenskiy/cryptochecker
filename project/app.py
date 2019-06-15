@@ -4,7 +4,7 @@ import logging
 import telebot
 
 from project.api.telegram import TelegramAPI
-from .config import API_TOKEN
+from project.config import API_TOKEN
 
 WEBHOOK_HOST = 'zstoreit.info'
 WEBHOOK_PORT = 80
