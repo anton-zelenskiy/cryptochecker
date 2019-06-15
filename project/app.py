@@ -66,9 +66,9 @@ def updates():
 
     update = parse_update(response)
 
-    keyboard = json.dumps({
+    keyboard = {
         'keyboard': [{'text': '/ss'}, {'text': 'ss'}]
-    })
+    }
 
     data = {
         'chat_id': update.message.chat.id,
