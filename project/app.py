@@ -43,9 +43,6 @@ redis = Redis(host=REDIS_HOST, port=REDIS_PORT)
 
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
-    redis.sadd(CHATS_CACHE_KEY, 1)
-    redis.sadd(CHATS_CACHE_KEY, 2)
-    app.logger.info(redis.smembers(CHATS_CACHE_KEY))
     return 'Hi there!'
 
 
@@ -110,30 +107,35 @@ def send_message(update):
     text = update.message.text
 
     if text in ('/start', '/help',):
-        redis.sadd(CHATS_CACHE_KEY, update.message.chat.id)
-
         data.update({'reply_markup': keyboard})
         tg_api.send_message(data)
 
-    elif text == '/stop_notifications':
-        redis.srem(CHATS_CACHE_KEY, update.message.chat.id)
+    elif text == '/enable_notifications':
+        redis.sadd(CHATS_CACHE_KEY, update.message.chat.id)
+        data.update({'text': 'Скоро вы начнете получать уведомления'})
+        tg_api.send_message(data)
 
-    elif update.message.text == 'bitcoin':
+    elif text == '/disable_notifications':
+        redis.srem(CHATS_CACHE_KEY, update.message.chat.id)
+        data.update({'text': 'Вы больше не будете получать уведомления :('})
+        tg_api.send_message(data)
+
+    elif text == 'bitcoin':
         result = cg.get_price(ids=['bitcoin'], vs_currencies='usd')
         data.update({'text': result})
         tg_api.send_message(data)
 
-    elif update.message.text == 'ethereum':
+    elif text == 'ethereum':
         result = cg.get_price(ids=['ethereum'], vs_currencies='usd')
         data.update({'text': result})
         tg_api.send_message(data)
 
-    elif update.message.text == 'ripple':
+    elif text == 'ripple':
         result = cg.get_price(ids=['ripple'], vs_currencies='usd')
         data.update({'text': result})
         tg_api.send_message(data)
 
-    elif update.message.text == 'litecoin':
+    elif text == 'litecoin':
         result = cg.get_price(ids=['litecoin'], vs_currencies='usd')
         data.update({'text': result})
         tg_api.send_message(data)
