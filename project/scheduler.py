@@ -30,6 +30,9 @@ def sent_currencies_price():
     """
     chat_ids = redis.get(CHATS_CACHE_KEY)
 
+    if not chat_ids:
+        return
+
     result = cg.get_price(
         ids=['bitcoin', 'litecoin', 'ethereum'],
         vs_currencies='usd'
