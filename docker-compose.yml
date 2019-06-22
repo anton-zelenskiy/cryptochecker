@@ -8,9 +8,19 @@ services:
     build: ./project
     ports:
       - 8000:8000
+    depends_on:
+      - redis
     networks:
       - custom_network
     command: gunicorn -w 1 -b :8000 app:app
+
+  redis:
+    image: redis:3.2.11
+    container_name: redis
+    networks:
+      - custom_network
+    ports:
+      - 6379:6379
 
   nginx:
     image: nginx:alpine
