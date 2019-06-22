@@ -28,7 +28,7 @@ def sent_currencies_price():
 
     schedule:
     """
-    chat_ids = redis.get(CHATS_CACHE_KEY)
+    chat_ids = redis.smembers(CHATS_CACHE_KEY)
 
     if not chat_ids:
         return
@@ -40,7 +40,7 @@ def sent_currencies_price():
 
     for chat_id in chat_ids:
         data = {
-            'chat_id': chat_id,
+            'chat_id': int(chat_id),
             'text': result
         }
         tg_api.send_message(data)

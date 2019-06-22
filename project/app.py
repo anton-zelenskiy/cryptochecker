@@ -43,6 +43,9 @@ redis = Redis(host=REDIS_HOST, port=REDIS_PORT)
 
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
+    redis.sadd(CHATS_CACHE_KEY, 1)
+    redis.sadd(CHATS_CACHE_KEY, 2)
+    app.logger.info(redis.smembers(CHATS_CACHE_KEY))
     return 'Hi there!'
 
 
@@ -93,10 +96,7 @@ def updates():
 def save_client_info(update):
     """Сохраняет id чата и id пользователя. """
 
-    chat_ids = redis.get(CHATS_CACHE_KEY) or []
-    chat_ids.append(update.message.chat.id)
-
-    redis.set(CHATS_CACHE_KEY, chat_ids)
+    redis.sadd(CHATS_CACHE_KEY, update.message.chat.id)
 
 
 def send_message(update):
