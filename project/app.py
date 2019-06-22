@@ -12,14 +12,16 @@ from project.scheduler import Config
 
 from project.config import (
     API_TOKEN,
-    DICT_CONFIG,
+    LOGGING_CONFIG,
     WEBHOOK_HOST,
     WEBHOOK_PORT,
     CHATS_CACHE_KEY,
+    REDIS_HOST,
+    REDIS_PORT,
 )
 
 
-dictConfig(DICT_CONFIG)
+dictConfig(LOGGING_CONFIG)
 
 WEBHOOK_URL_BASE = f'https://{WEBHOOK_HOST}:{WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{API_TOKEN}/'
@@ -34,15 +36,13 @@ scheduler.start()
 
 tg_api = TelegramAPI()
 
-redis = Redis(host='redis', port=6379)
+redis = Redis(host=REDIS_HOST, port=REDIS_PORT)
 
 
 # console log: app.logger.info(request.get_data().decode('utf-8'))
 
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
-    redis.incr('test:key')
-    app.logger.info(f"key: {redis.get('test:key')}")
     return 'Hi there!'
 
 

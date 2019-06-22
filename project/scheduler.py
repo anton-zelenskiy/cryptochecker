@@ -1,9 +1,12 @@
 from pycoingecko import CoinGeckoAPI
+from redis import Redis
 
-from project.config import CHATS_CACHE_KEY
-from project.app import tg_api, redis
+from project.config import CHATS_CACHE_KEY, REDIS_HOST, REDIS_PORT
+from project.api.telegram import TelegramAPI
 
 cg = CoinGeckoAPI()
+redis = Redis(host=REDIS_HOST, port=REDIS_PORT)
+tg_api = TelegramAPI()
 
 
 class Config:
