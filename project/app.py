@@ -88,15 +88,8 @@ def updates():
     response = json.loads(request.get_data())
     update = parse_update(response)
 
-    save_client_info(update)
     send_message(update)
     return ''
-
-
-def save_client_info(update):
-    """Сохраняет id чата и id пользователя. """
-
-    redis.sadd(CHATS_CACHE_KEY, update.message.chat.id)
 
 
 def send_message(update):
@@ -114,9 +107,16 @@ def send_message(update):
     }
     cg = CoinGeckoAPI()
 
-    if update.message.text in ('/start', '/help',):
+    text = update.message.text
+
+    if text in ('/start', '/help',):
+        redis.sadd(CHATS_CACHE_KEY, update.message.chat.id)
+
         data.update({'reply_markup': keyboard})
         tg_api.send_message(data)
+
+    elif text == '/stop_notifications':
+        redis.srem(CHATS_CACHE_KEY, update.message.chat.id)
 
     elif update.message.text == 'bitcoin':
         result = cg.get_price(ids=['bitcoin'], vs_currencies='usd')
