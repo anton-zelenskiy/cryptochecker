@@ -94,8 +94,7 @@ def send_message(update):
 
     keyboard = json.dumps({
         'keyboard': [
-            [[{'text': 'bitcoin'}], [{'text': 'ethereum'}]],
-            [[{'text': 'ripple'}], [{'text': 'litecoin'}]]
+            [{'text': 'bitcoin'}], [{'text': 'ethereum'}]
         ]
     })
 
@@ -107,7 +106,7 @@ def send_message(update):
     text = update.message.text
 
     if text in ('/start', '/help',):
-        data.update({'reply_markup': keyboard})
+        data.update({'reply_markup': keyboard, 'text': 'Привет!'})
         tg_api.send_message(data)
 
     elif text == '/enable_notifications':
