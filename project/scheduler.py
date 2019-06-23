@@ -42,7 +42,7 @@ def sent_currencies_price():
         data = {
             'chat_id': int(chat_id),
             'text': parse_currencies(result),
-            'parse_mode': 'html'
+            'parse_mode': 'HTML'
         }
         tg_api.send_message(data)
 
