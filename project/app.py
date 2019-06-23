@@ -112,7 +112,7 @@ def send_message(update):
 
     elif text == '/enable_notifications':
         redis.sadd(CHATS_CACHE_KEY, update.message.chat.id)
-        data.update({'text': 'Скоро вы начнете получать уведомления'})
+        data.update({'text': 'Уведомления успешно подключены!'})
         tg_api.send_message(data)
 
     elif text == '/disable_notifications':
