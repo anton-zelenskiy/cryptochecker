@@ -41,8 +41,18 @@ def sent_currencies_price():
     for chat_id in chat_ids:
         data = {
             'chat_id': int(chat_id),
-            'text': result
+            'text': parse_currencies(result),
+            'parse_mode': 'html'
         }
         tg_api.send_message(data)
 
     return result
+
+
+def parse_currencies(data):
+    """Возвращает информацию в html-разметке. """
+    rows = []
+    for k, v in data.items():
+        rows.append(f"<i>{k}</i>: <b>{v['usd']}$</b>")
+
+    return '<br>'.join(rows)
