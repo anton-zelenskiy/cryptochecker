@@ -94,8 +94,8 @@ def send_message(update):
 
     keyboard = json.dumps({
         'keyboard': [
-            [{'text': 'bitcoin'}], [{'text': 'ethereum'}],
-            [{'text': 'ripple'}], [{'text': 'litecoin'}]
+            [[{'text': 'bitcoin'}], [{'text': 'ethereum'}]],
+            [[{'text': 'ripple'}], [{'text': 'litecoin'}]]
         ]
     })
 
