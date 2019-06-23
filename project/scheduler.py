@@ -16,7 +16,7 @@ class Config:
             'func': 'scheduler:sent_currencies_price',
             'args': (),
             'trigger': 'interval',
-            'minutes': 1
+            'minutes': 60
         }
     ]
 
