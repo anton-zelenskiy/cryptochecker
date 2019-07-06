@@ -36,7 +36,7 @@ scheduler.start()
 
 tg_api = TelegramAPI()
 
-redis = Redis(host=REDIS_HOST, port=REDIS_PORT)
+redis = Redis(host=REDIS_HOST, port=REDIS_PORT, password='redis_password')
 
 
 # console log: app.logger.info(request.get_data().decode('utf-8'))
