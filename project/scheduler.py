@@ -13,7 +13,7 @@ class Config:
     JOBS = [
         {
             'id': 'sent_currencies_price',
-            'func': 'scheduler:sent_currencies_price',
+            'func': 'scheduler:send_currency_prices',
             'args': (),
             'trigger': 'interval',
             'minutes': 60
@@ -23,17 +23,14 @@ class Config:
     SCHEDULER_API_ENABLED = True
 
 
-def sent_currencies_price():
-    """Отправляет подписчикам инфу о стоимости криптовалют.
-
-    schedule:
-    """
+def send_currency_prices():
+    """Notify subscribers about currency prices every hour."""
     chat_ids = redis.smembers(CHATS_CACHE_KEY)
 
     if not chat_ids:
         return
 
-    result = cg.get_price(
+    currency_prices = cg.get_price(
         ids=['bitcoin', 'litecoin', 'ethereum'],
         vs_currencies='usd'
     )
@@ -41,16 +38,16 @@ def sent_currencies_price():
     for chat_id in chat_ids:
         data = {
             'chat_id': int(chat_id),
-            'text': parse_currencies(result),
+            'text': get_currency_prices_display(currency_prices),
             'parse_mode': 'HTML'
         }
         tg_api.send_message(data)
 
-    return result
+    return currency_prices
 
 
-def parse_currencies(data):
-    """Возвращает информацию в html-разметке. """
+def get_currency_prices_display(data):
+    """Wraps info in html tags."""
     rows = []
     for k, v in data.items():
         rows.append(f"<i>{k}</i>: <b>{v['usd']}$</b>")

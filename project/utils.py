@@ -30,34 +30,8 @@ class Update:
     message: Message
 
 
-# data = {
-#         "update_id":773970080,
-#         "message":{
-#             "message_id":9,
-#             "from":{
-#                 "id":110454962,
-#                 "is_bot": False,
-#                 "first_name":"\u0410\u043d\u0442\u043e\u043d",
-#                 "last_name":"\u0417\u0435\u043b\u0435\u043d\u0441\u043a\u0438\u0439",
-#                 "username":"antonfewwt",
-#                 "language_code":"en"
-#             },
-#             "chat":{
-#                 "id":110454962,
-#                 "first_name":"\u0410\u043d\u0442\u043e\u043d",
-#                 "last_name":"\u0417\u0435\u043b\u0435\u043d\u0441\u043a\u0438\u0439",
-#                 "username":"antonfewwt",
-#                 "type":"private"
-#             },
-#             "date":1560589346,
-#             "text":"/start",
-#             "entities":[{"offset":0,"length":6,"type":"bot_command"}]
-#         }
-#     }
-
-
-def parse_update(data):
-    """"""
+def parse_update_message(data):
+    """Parses update message from tg."""
     message = None
     user = None
     chat = None

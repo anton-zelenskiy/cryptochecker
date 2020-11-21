@@ -1,4 +1,3 @@
-import telebot
 import json
 from redis import Redis
 from flask_apscheduler import APScheduler
@@ -7,7 +6,7 @@ from flask import Flask, request
 from logging.config import dictConfig
 
 from project.api.telegram import TelegramAPI
-from project.utils import parse_update
+from project.utils import parse_update_message
 from project.scheduler import Config
 
 from project.config import (
@@ -26,8 +25,6 @@ dictConfig(LOGGING_CONFIG)
 WEBHOOK_URL_BASE = f'https://{WEBHOOK_HOST}:{WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{API_TOKEN}/'
 
-bot = telebot.TeleBot(API_TOKEN)
-
 app = Flask(__name__)
 app.config.from_object(Config())
 scheduler = APScheduler()
@@ -38,8 +35,6 @@ tg_api = TelegramAPI()
 
 redis = Redis(host=REDIS_HOST, port=REDIS_PORT, password='redis_password')
 
-
-# console log: app.logger.info(request.get_data().decode('utf-8'))
 
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
@@ -83,7 +78,7 @@ def updates():
         return 'Unexpected ContentType', 400
 
     response = json.loads(request.get_data())
-    update = parse_update(response)
+    update = parse_update_message(response)
 
     send_message(update)
     return ''
@@ -106,17 +101,17 @@ def send_message(update):
     text = update.message.text
 
     if text in ('/start', '/help',):
-        data.update({'reply_markup': keyboard, 'text': 'Привет!'})
+        data.update({'reply_markup': keyboard, 'text': 'Hi!'})
         tg_api.send_message(data)
 
     elif text == '/enable_notifications':
         redis.sadd(CHATS_CACHE_KEY, update.message.chat.id)
-        data.update({'text': 'Уведомления успешно подключены!'})
+        data.update({'text': 'Notifications are successfully enabled'})
         tg_api.send_message(data)
 
     elif text == '/disable_notifications':
         redis.srem(CHATS_CACHE_KEY, update.message.chat.id)
-        data.update({'text': 'Вы больше не будете получать уведомления :('})
+        data.update({'text': 'Notifications are successfully disabled'})
         tg_api.send_message(data)
 
     elif text == 'bitcoin':
@@ -142,10 +137,10 @@ def send_message(update):
     else:
         data = {
             'chat_id': update.message.chat.id,
-            'text': 'Попробуйте другую команду'
+            'text': 'Unknown command'
         }
         tg_api.send_message(data)
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()

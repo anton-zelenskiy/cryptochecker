@@ -5,7 +5,7 @@ from ..config import API_TOKEN
 
 
 class TelegramAPI:
-    """"""
+    """Simple tg api."""
 
     request_url = 'https://api.telegram.org/bot{api_token}/{method}'
     headers = {
@@ -42,7 +42,7 @@ class TelegramAPI:
         return self._make_request(method, {})
 
     def _make_request(self, method, data):
-        """Осуществляет запрос. """
+        """Sends request."""
         r = requests.get(
             url=self.request_url.format(
                 api_token=API_TOKEN,
@@ -52,7 +52,6 @@ class TelegramAPI:
             params=urlencode(data)
         )
         r.raise_for_status()
-
         result = r.json()
 
         return result, r.url
