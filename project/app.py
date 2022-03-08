@@ -21,7 +21,7 @@ from project.utils import parse_update_message
 
 dictConfig(LOGGING_CONFIG)
 
-WEBHOOK_URL_BASE = f'http://{WEBHOOK_HOST}:{WEBHOOK_PORT}'
+WEBHOOK_URL_BASE = f'https://{WEBHOOK_HOST}:{WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{API_TOKEN}/'
 
 app = Flask(__name__)
