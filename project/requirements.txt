@@ -30,7 +30,7 @@ Pygments==2.4.2
 python-dateutil==2.8.0
 pytz==2019.1
 redis==3.2.1
-requests==2.7.0
+requests==2.20.0
 six==1.12.0
 traitlets==4.3.2
 tzlocal==1.5.1
