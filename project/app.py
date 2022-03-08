@@ -1,14 +1,12 @@
 import json
-from redis import Redis
-from flask_apscheduler import APScheduler
-from pycoingecko import CoinGeckoAPI
-from flask import Flask, request
 from logging.config import dictConfig
 
-from project.api.telegram import TelegramAPI
-from project.utils import parse_update_message
-from project.scheduler import Config
+from flask import Flask, request
+from flask_apscheduler import APScheduler
+from pycoingecko import CoinGeckoAPI
+from redis import Redis
 
+from project.api.telegram import TelegramAPI
 from project.config import (
     API_TOKEN,
     LOGGING_CONFIG,
@@ -18,7 +16,8 @@ from project.config import (
     REDIS_HOST,
     REDIS_PORT,
 )
-
+from project.scheduler import Config
+from project.utils import parse_update_message
 
 dictConfig(LOGGING_CONFIG)
 

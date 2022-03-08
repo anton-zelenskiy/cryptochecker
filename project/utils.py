@@ -41,11 +41,11 @@ def parse_update_message(data):
 
         if 'from' in message_:
             user = User(**{
-                field.name: message_['from'][field.name]
+                field.name: message_['from'].get(field.name, '')
                 for field in fields(User)
             })
             chat = Chat(**{
-                field.name: message_['chat'][field.name]
+                field.name: message_['chat'].get(field.name, '')
                 for field in fields(Chat)
             })
 

@@ -19,7 +19,7 @@ LOGGING_CONFIG = {
 }
 
 WEBHOOK_HOST = os.getenv('WEBHOOK_HOST', '')
-WEBHOOK_PORT = 443
+WEBHOOK_PORT = os.getenv('WEBHOOK_PORT', 443)
 
 
 REDIS_HOST = 'redis'
