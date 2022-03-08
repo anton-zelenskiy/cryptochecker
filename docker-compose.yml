@@ -11,10 +11,8 @@ services:
     networks:
       - app_2
       - infra-nginx_reverse_proxy
-    volumes:
-      - .env.prod:/home/project/.env.prod
     env_file:
-      - .env.prod
+      - ./.env.prod
     command: gunicorn -w 1 -b :5001 app:app
   redis:
     image: redis:3.2.11
