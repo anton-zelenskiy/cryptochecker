@@ -29,11 +29,10 @@ services:
       - custom_network
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
   redis:
-    image: redis:3.2.11
+    image: redis:alpine
     networks:
       - custom_network
-    ports:
-      - "6379:6379"
+    command: redis-server --requirepass redis_password
 
 networks:
   custom_network:

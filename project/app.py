@@ -16,7 +16,7 @@ from project.config import (
     REDIS_HOST,
     REDIS_PORT,
 )
-from project.scheduler import Config
+from project.scheduler.config import Config
 from project.utils import parse_update_message
 
 dictConfig(LOGGING_CONFIG)
