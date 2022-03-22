@@ -1,11 +1,10 @@
 from pycoingecko import CoinGeckoAPI
-from redis import Redis
 
+from core.redis import get_redis
 from project.api.telegram import TelegramAPI
-from project.config import REDIS_HOST, REDIS_PORT
 
 cg = CoinGeckoAPI()
-redis = Redis(host=REDIS_HOST, port=REDIS_PORT, password='redis_password')
+redis = get_redis()
 tg_api = TelegramAPI()
 
 

@@ -4,7 +4,7 @@ from datetime import datetime
 
 import requests
 
-from project.config import ALPHAVANTAGE_API_KEY
+from project.settings import ALPHAVANTAGE_API_KEY
 
 
 class ExchangeMarket(Enum):

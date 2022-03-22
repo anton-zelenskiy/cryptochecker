@@ -1,23 +1,18 @@
 from pycoingecko import CoinGeckoAPI
-from redis import Redis
 
-from project.api.telegram import TelegramAPI
+from core.redis import get_redis
+from project import settings
 from project.api.alphavantage_api import AlphadvantageAPI, Ratio
-from project.config import (
-    CHATS_CACHE_KEY,
-    REDIS_HOST,
-    REDIS_PORT,
-    VOLATILITY_THRESHOLD_PERCENT,
-)
+from project.api.telegram import TelegramAPI
 
 cg = CoinGeckoAPI()
-redis = Redis(host=REDIS_HOST, port=REDIS_PORT, password='redis_password')
+redis = get_redis()
 tg_api = TelegramAPI()
 
 
 def send_currency_prices():
     """Notify subscribers about currency prices every hour."""
-    chat_ids = redis.smembers(CHATS_CACHE_KEY)
+    chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
 
     if not chat_ids:
         return
@@ -49,7 +44,7 @@ def get_currency_prices_display(data):
 
 def check_volatility():
     """Notify subscribers about currency volatility."""
-    chat_ids = redis.smembers(CHATS_CACHE_KEY)
+    chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
 
     if not chat_ids:
         return
@@ -61,25 +56,26 @@ def check_volatility():
     for currency in currencies:
         volatility = api.get_volatility(currency=currency)
 
-        for period_min, volatility_data in volatility.items():
-            if volatility_data.volatility > VOLATILITY_THRESHOLD_PERCENT:
-                ratio = Ratio.get_ratio_display(volatility_data.ratio)
-                message = (
-                    f'Price alert for {currency}. Period (min): {period_min}, '
-                    f'volatility: {volatility_data.volatility} % ({ratio}), '
-                    f'latest price: {volatility_data.latest_value}, '
-                    f'old price: {volatility_data.old_value}'
+        for chat_id in chat_ids:
+            try:
+                volatility_threshold = float(
+                    redis.get(f'volatility:user:{chat_id}:threshold')
                 )
-                send_message_to_subscribers(message)
+            except TypeError:
+                volatility_threshold = settings.VOLATILITY_THRESHOLD_PERCENT
 
-
-def send_message_to_subscribers(message: str):
-    chat_ids = redis.smembers(CHATS_CACHE_KEY)
-
-    for chat_id in chat_ids:
-        data = {
-            'chat_id': int(chat_id),
-            'text': message,
-            'parse_mode': 'HTML'
-        }
-        tg_api.send_message(data)
+            for period_min, volatility_data in volatility.items():
+                if volatility_data.volatility > volatility_threshold:
+                    ratio = Ratio.get_ratio_display(volatility_data.ratio)
+                    message = (
+                        f'Price alert for {currency}. Period (min): {period_min}, '
+                        f'volatility: {volatility_data.volatility} % ({ratio}), '
+                        f'latest price: {volatility_data.latest_value}, '
+                        f'old price: {volatility_data.old_value}'
+                    )
+                    data = {
+                        'chat_id': int(chat_id),
+                        'text': message,
+                        'parse_mode': 'HTML'
+                    }
+                    tg_api.send_message(data)

@@ -3,7 +3,7 @@ version: '3'
 services:
   app:
     restart: always
-    build: ./project
+    build: .
     ports:
       - "5001:5001"
     depends_on:
@@ -23,6 +23,8 @@ services:
     volumes:
       - ./infra-nginx/data/nginx.conf:/etc/nginx/nginx.conf
       - ./infra-nginx/data/conf.local:/etc/nginx/conf.d
+      - ./infra-nginx/cert.pem:/etc/cert.pem
+      - ./infra-nginx/private.key:/etc/private.key
     depends_on:
       - app
     networks:

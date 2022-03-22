@@ -2,7 +2,7 @@ from urllib.parse import urlencode
 
 import requests
 
-from ..config import API_TOKEN
+from ..settings import API_TOKEN
 
 
 class TelegramAPI:
