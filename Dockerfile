@@ -7,4 +7,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 ENV PYTHONPATH /home/project
 
+ENV FLASK_APP=run
+
 COPY . .
