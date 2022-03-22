@@ -5,6 +5,6 @@ WORKDIR /home/project
 COPY conf/requirements.txt /home/project
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENV PYTHONPATH /home/
+ENV PYTHONPATH /home/project
 
 COPY . .
