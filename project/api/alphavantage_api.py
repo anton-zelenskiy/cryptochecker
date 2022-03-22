@@ -28,8 +28,8 @@ class Ratio(Enum):
 class VolatilityValue:
     ratio: Ratio
     volatility: float  # percentage
-    latest_value: float
-    old_value: float
+    x1: float
+    x2: float
 
 
 @dataclass(frozen=True)
@@ -105,42 +105,29 @@ class AlphadvantageAPI:
             raise Exception('history data is empty')
 
         return {
-            5: self.calculate_volatility(latest_value, five_min_ago),
-            15: self.calculate_volatility(latest_value, fifteen_min_ago),
-            30: self.calculate_volatility(latest_value, thirty_min_ago),
-            60: self.calculate_volatility(latest_value, hour_ago),
+            5: self.calculate_volatility(five_min_ago, latest_value),
+            15: self.calculate_volatility(fifteen_min_ago, latest_value),
+            30: self.calculate_volatility(thirty_min_ago, latest_value),
+            60: self.calculate_volatility(hour_ago, latest_value),
         }
 
-    def calculate_volatility(self, latest_value, old_value) -> VolatilityValue:
-        if latest_value == old_value:
+    def calculate_volatility(self, x1: float, x2: float) -> VolatilityValue:
+        if x1 == x2:
             return VolatilityValue(
                 ratio=Ratio.BALANCE,
                 volatility=0.0,
-                latest_value=latest_value,
-                old_value=old_value,
+                x1=x1,
+                x2=x2,
             )
 
-        if latest_value > old_value:
-            x1, x2 = latest_value, old_value
-            ratio = Ratio.UPSIDE
-        else:
-            x1, x2 = old_value, latest_value
-            ratio = Ratio.DOWNSIDE
+        volatility = (x2 - x1) / x1 * 100
 
         return VolatilityValue(
-            ratio=ratio,
-            volatility=round((x1 - x2) / x1 * 100, 1),
-            latest_value=latest_value,
-            old_value=old_value,
+            ratio=Ratio.UPSIDE if volatility > 0 else Ratio.DOWNSIDE,
+            volatility=round(abs(volatility), 1),
+            x1=x1,
+            x2=x2,
         )
-
-    def _get_ratio(self, latest_value, old_value):
-        if latest_value == old_value:
-            return Ratio.BALANCE
-        if latest_value > old_value:
-            return Ratio.UPSIDE
-
-        return Ratio.DOWNSIDE
 
     def _make_request(self, method: str, url: str, params: dict):
         response = requests.request(

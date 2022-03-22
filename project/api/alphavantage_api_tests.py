@@ -143,25 +143,48 @@ def test_get_volatility(
         5: VolatilityValue(
             ratio=Ratio.DOWNSIDE,
             volatility=9.1,
-            latest_value=1000,
-            old_value=1100,
+            x1=1100,
+            x2=1000,
         ),
         15: VolatilityValue(
             ratio=Ratio.DOWNSIDE,
             volatility=16.7,
-            latest_value=1000,
-            old_value=1200,
+            x1=1200,
+            x2=1000,
         ),
         30: VolatilityValue(
             ratio=Ratio.DOWNSIDE,
             volatility=50,
-            latest_value=1000,
-            old_value=2000,
+            x1=2000,
+            x2=1000,
         ),
         60: VolatilityValue(
             ratio=Ratio.DOWNSIDE,
             volatility=52.4,
-            latest_value=1000,
-            old_value=2100,
+            x1=2100,
+            x2=1000,
         ),
     }
+
+
+@pytest.mark.parametrize(
+    'x1, x2, expected_volatility, expected_ratio',
+    [
+        (100, 93, 7.0, Ratio.DOWNSIDE),
+        (93, 100, 7.5, Ratio.UPSIDE),
+    ]
+)
+def test_calculate_volatility(
+    x1,
+    x2,
+    expected_volatility,
+    expected_ratio,
+):
+    api = AlphadvantageAPI()
+    actual = api.calculate_volatility(x1, x2)
+    assert actual == VolatilityValue(
+        ratio=expected_ratio,
+        volatility=expected_volatility,
+        x1=x1,
+        x2=x2,
+    )
