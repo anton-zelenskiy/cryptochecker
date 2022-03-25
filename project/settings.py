@@ -1,4 +1,8 @@
 import os
+import logging
+
+
+logging.getLogger('parso.python.diff').disabled = True
 
 
 API_TOKEN = os.getenv('API_TOKEN', '')
