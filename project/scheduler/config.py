@@ -1,6 +1,6 @@
 from pycoingecko import CoinGeckoAPI
 
-from core.redis import get_redis
+from project.core.redis import get_redis
 from project.api.telegram import TelegramAPI
 
 cg = CoinGeckoAPI()

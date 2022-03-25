@@ -14,7 +14,7 @@ from telegram.ext import (
     CallbackContext,
 )
 
-from core.redis import get_redis
+from project.core.redis import get_redis
 from project import settings
 
 cg = CoinGeckoAPI()
