@@ -9,4 +9,5 @@ def get_redis():
         host=settings.REDIS_HOST,
         port=settings.REDIS_PORT,
         password='redis_password',
+        decode_responses=True,
     )
