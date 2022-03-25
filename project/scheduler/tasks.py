@@ -70,8 +70,8 @@ def check_volatility():
                     message = (
                         f'Price alert for {currency}. Period (min): {period_min}, '
                         f'volatility: {volatility_data.volatility} % ({ratio}), '
-                        f'latest price: {volatility_data.latest_value}, '
-                        f'old price: {volatility_data.old_value}'
+                        f'latest price: {volatility_data.x1}, '
+                        f'old price: {volatility_data.x2}'
                     )
                     data = {
                         'chat_id': int(chat_id),
