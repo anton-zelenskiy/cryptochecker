@@ -21,7 +21,7 @@ class Ratio(Enum):
         if ratio == cls.DOWNSIDE:
             return '\u2B07'  # arrow down
 
-        return '\xF0\x9F\x9A\x80'  # rocket
+        return '\u2B06'  # up arrow
 
 
 @dataclass(frozen=True)
