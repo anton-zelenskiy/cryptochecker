@@ -19,9 +19,9 @@ class Ratio(Enum):
     @classmethod
     def get_ratio_display(cls, ratio: 'Ratio'):
         if ratio == cls.DOWNSIDE:
-            return '\u2B07'  #  'downside'
+            return '\u2B07'  # arrow down
 
-        return '\u1F680'  # 'upside'
+        return '\xF0\x9F\x9A\x80'  # rocket
 
 
 @dataclass(frozen=True)
