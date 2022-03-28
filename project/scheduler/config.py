@@ -1,13 +1,3 @@
-from pycoingecko import CoinGeckoAPI
-
-from project.core.redis import get_redis
-from project.api.telegram import TelegramAPI
-
-cg = CoinGeckoAPI()
-redis = get_redis()
-tg_api = TelegramAPI()
-
-
 class Config:
     JOBS = [
         {

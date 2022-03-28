@@ -6,19 +6,20 @@ from project.api.alphavantage_api import AlphadvantageAPI, Ratio
 from project.api.telegram import TelegramAPI
 
 cg = CoinGeckoAPI()
-redis = get_redis()
+
 tg_api = TelegramAPI()
 
 
 def send_currency_prices():
     """Notify subscribers about currency prices every hour."""
+    redis = get_redis()
     chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
 
     if not chat_ids:
         return
 
     currency_prices = cg.get_price(
-        ids=['bitcoin', 'litecoin', 'ethereum'],
+        ids=['bitcoin', 'ethereum', 'cardano', 'terra-luna'],
         vs_currencies='usd'
     )
 
@@ -44,6 +45,7 @@ def get_currency_prices_display(data):
 
 def check_volatility():
     """Notify subscribers about currency volatility."""
+    redis = get_redis()
     chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
 
     if not chat_ids:
@@ -51,7 +53,7 @@ def check_volatility():
 
     api = AlphadvantageAPI()
 
-    currencies = ['BTC', 'ETH']
+    currencies = ['BTC', 'ETH', 'ADA', 'LUNA']
 
     for currency in currencies:
         volatility = api.get_volatility(currency=currency)

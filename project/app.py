@@ -3,9 +3,7 @@ from logging.config import dictConfig
 import telegram
 from flask import Flask, request
 from flask_apscheduler import APScheduler
-from pycoingecko import CoinGeckoAPI
 
-from project.core.redis import get_redis
 from project import settings
 from project.api.telegram import TelegramAPI
 from project.dispatcher import init_dispatcher
@@ -23,13 +21,9 @@ scheduler.init_app(app)
 scheduler.start()
 
 tg_api = TelegramAPI()
-cg = CoinGeckoAPI()
-
-
 tg_bot = telegram.Bot(settings.API_TOKEN)
 tg_bot.set_webhook(url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}')
 dispatcher = init_dispatcher(bot=tg_bot)
-redis = get_redis()
 
 
 @app.route('/', methods=['GET', 'HEAD'])
