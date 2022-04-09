@@ -58,6 +58,17 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
     )
     dp.add_handler(add_currency_handler)
 
+    del_currency_handler = ConversationHandler(
+        entry_points=[CommandHandler('del_currency', del_currency_command)],
+        states={
+            CurrencyState.DEL_CURRENCY.value: [
+                MessageHandler(Filters.text, del_currency_value)
+            ],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+    )
+    dp.add_handler(del_currency_handler)
+
     dp.add_handler(MessageHandler(Filters.all, currency_price))
 
     return dp
