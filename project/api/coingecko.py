@@ -51,7 +51,7 @@ def get_daily_currency_history(currency_id: str) -> List[HistoryData]:
     prices_data = data.get('prices', [])
 
     return [
-        HistoryData(unix_timestamp=ts, value=price)
+        HistoryData(unix_timestamp=ts, value=round(price, 2))
         for ts, price in prices_data
     ]
 
