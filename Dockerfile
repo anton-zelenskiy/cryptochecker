@@ -1,4 +1,4 @@
-FROM python:3.7
+FROM python:3.10.4
 
 RUN mkdir -p /home/project
 WORKDIR /home/project
