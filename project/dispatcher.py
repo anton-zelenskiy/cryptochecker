@@ -14,6 +14,7 @@ from telegram.ext import (
     CallbackContext,
 )
 
+from project.api.coingecko import is_currency_code_exists
 from project.core.redis import get_redis
 from project import settings
 
@@ -44,6 +45,17 @@ def init_dispatcher(bot: telegram.Bot) -> Dispatcher:
         fallbacks=[CommandHandler('cancel', cancel)],
     )
     dp.add_handler(volatility_handler)
+
+    add_currency_handler = ConversationHandler(
+        entry_points=[CommandHandler('add_currency', add_currency_command)],
+        states={
+            AddCurrencyState.ADD_CURRENCY.value: [
+                MessageHandler(Filters.text, add_currency_value)
+            ],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+    )
+    dp.add_handler(add_currency_handler)
 
     return dp
 
@@ -90,6 +102,10 @@ class VolatilityState(enum.Enum):
     SET_VOLATILITY = 'SET'
 
 
+class AddCurrencyState(enum.Enum):
+    ADD_CURRENCY = 'ADD_CURRENCY'
+
+
 def set_volatility_command(update: Update, context: CallbackContext) -> str:
     update.message.reply_text('Please set volatility threshold:')
 
@@ -106,6 +122,28 @@ def set_volatility_value(update: Update, context: CallbackContext) -> None:
 
     redis.set(f'volatility:user:{update.message.chat.id}:threshold', value)
     update.message.reply_text('Volatility threshold updated successfully')
+
+    return ConversationHandler.END
+
+
+def add_currency_command(update: Update, context: CallbackContext) -> str:
+    update.message.reply_text('Please type currency code:')
+
+    return AddCurrencyState.ADD_CURRENCY.value
+
+
+def add_currency_value(update: Update, context: CallbackContext) -> None:
+    currency_code = str(update.message.text).upper()
+
+    if not is_currency_code_exists(currency_code):
+        update.message.reply_text('invalid currency, try again:')
+        return VolatilityState.SET_VOLATILITY.value
+
+    redis.sadd(
+        f'volatility:user:{update.message.chat.id}:currencies',
+        currency_code
+    )
+    update.message.reply_text('Currency added successfully')
 
     return ConversationHandler.END
 

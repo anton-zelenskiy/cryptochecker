@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+from typing import Dict, Optional
 
 import requests
 
@@ -72,7 +73,10 @@ class AlphadvantageAPI:
 
         return data.get('Time Series Crypto (5min)', {})
 
-    def get_volatility(self, currency: str):
+    def get_volatility(
+        self,
+        currency: str
+    ) -> Optional[Dict[int, VolatilityValue]]:
         daily_history = self.get_daily_history(currency)
 
         if not daily_history:

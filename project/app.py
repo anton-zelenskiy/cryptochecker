@@ -40,7 +40,7 @@ def get_me():
 
 @app.route(f'{WEBHOOK_URL_PATH}getMe/', methods=['GET'])
 def get_w():
-    res = tg_api.get_me()
+    res = tg_bot.get_me()
 
     return f'Get-Result: {res}'
 

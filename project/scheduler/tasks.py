@@ -1,13 +1,12 @@
 from pycoingecko import CoinGeckoAPI
+from typing import Iterable, Set
 
 from project.core.redis import get_redis
 from project import settings
 from project.api.alphavantage_api import AlphadvantageAPI, Ratio
-from project.api.telegram import TelegramAPI
+from project.app import tg_bot
 
 cg = CoinGeckoAPI()
-
-tg_api = TelegramAPI()
 
 
 def send_currency_prices():
@@ -24,12 +23,11 @@ def send_currency_prices():
     )
 
     for chat_id in chat_ids:
-        data = {
-            'chat_id': int(chat_id),
-            'text': get_currency_prices_display(currency_prices),
-            'parse_mode': 'HTML'
-        }
-        tg_api.send_message(data)
+        tg_bot.send_message(
+            chat_id=int(chat_id),
+            text=get_currency_prices_display(currency_prices),
+            parse_mode='HTML',
+        )
 
     return currency_prices
 
@@ -51,20 +49,23 @@ def check_volatility():
     if not chat_ids:
         return
 
-    api = AlphadvantageAPI()
+    currencies = ['BTC', 'ETH']
+    user_currencies_data = get_user_currencies_data(chat_ids)
 
-    currencies = ['BTC', 'ETH', 'ADA', 'LUNA']
+    all_currencies = set(currencies)
+    all_currencies.update({
+        set(curr) for curr in user_currencies_data.values()
+        if curr
+    })
 
-    for currency in currencies:
-        volatility = api.get_volatility(currency=currency)
+    volatility_data_by_currency = get_volatility_data(all_currencies)
 
-        for chat_id in chat_ids:
-            try:
-                volatility_threshold = float(
-                    redis.get(f'volatility:user:{chat_id}:threshold')
-                )
-            except TypeError:
-                volatility_threshold = settings.VOLATILITY_THRESHOLD_PERCENT
+    for chat_id in chat_ids:
+        user_currencies = user_currencies_data.get(chat_id, set())
+        volatility_threshold = get_volatility_threshold(chat_id)
+
+        for currency in set(currencies) | set(user_currencies):
+            volatility = volatility_data_by_currency.get(currency)
 
             for period_min, volatility_data in volatility.items():
                 if volatility_data.volatility > volatility_threshold:
@@ -75,9 +76,47 @@ def check_volatility():
                         f'latest price: {volatility_data.x2}, '
                         f'old price: {volatility_data.x1}'
                     )
-                    data = {
-                        'chat_id': int(chat_id),
-                        'text': message,
-                        'parse_mode': 'HTML'
-                    }
-                    tg_api.send_message(data)
+                    tg_bot.send_message(
+                        chat_id=int(chat_id),
+                        text=message,
+                        parse_mode='HTML',
+                    )
+
+
+def get_user_currencies_data(chat_ids: Iterable[str]):
+    redis = get_redis()
+
+    result = {}
+    for chat_id in chat_ids:
+        result.update({
+            chat_id: redis.smembers(
+                f'volatility:user:{chat_id}:currencies'
+            ) or []
+        })
+    return result
+
+
+def get_volatility_threshold(chat_id):
+    redis = get_redis()
+
+    try:
+        volatility_threshold = float(
+            redis.get(f'volatility:user:{chat_id}:threshold')
+        )
+    except TypeError:
+        volatility_threshold = settings.VOLATILITY_THRESHOLD_PERCENT
+
+    return volatility_threshold
+
+
+def get_volatility_data(currencies: Set[str]):
+    result = {}
+
+    api = AlphadvantageAPI()
+
+    for currency in currencies:
+        result.update({
+            currency: api.get_volatility(currency=currency)
+        })
+
+    return result
