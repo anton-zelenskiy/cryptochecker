@@ -5,40 +5,13 @@ from typing import Dict, Optional
 
 import requests
 
+from project.currencies.structures import VolatilityValue
+from project.currencies.volatility import calculate_volatility
 from project.settings import ALPHAVANTAGE_API_KEY
 
 
 class ExchangeMarket(Enum):
     USD = 'USD'
-
-
-class Ratio(Enum):
-    UPSIDE = 'upside'
-    DOWNSIDE = 'downside'
-    BALANCE = 'balance'
-
-    @classmethod
-    def get_ratio_display(cls, ratio: 'Ratio'):
-        if ratio == cls.DOWNSIDE:
-            return '\u2B07'  # arrow down
-
-        return '\u2B06'  # up arrow
-
-
-@dataclass(frozen=True)
-class VolatilityValue:
-    ratio: Ratio
-    volatility: float  # percentage
-    x1: float
-    x2: float
-
-
-@dataclass(frozen=True)
-class Volatility:
-    five_min: VolatilityValue
-    fifteen_min: VolatilityValue
-    thirty_min: VolatilityValue
-    hour: VolatilityValue
 
 
 @dataclass(frozen=True)
@@ -109,29 +82,11 @@ class AlphadvantageAPI:
             raise Exception('history data is empty')
 
         return {
-            5: self.calculate_volatility(five_min_ago, latest_value),
-            15: self.calculate_volatility(fifteen_min_ago, latest_value),
-            30: self.calculate_volatility(thirty_min_ago, latest_value),
-            60: self.calculate_volatility(hour_ago, latest_value),
+            5: calculate_volatility(five_min_ago, latest_value),
+            15: calculate_volatility(fifteen_min_ago, latest_value),
+            30: calculate_volatility(thirty_min_ago, latest_value),
+            60: calculate_volatility(hour_ago, latest_value),
         }
-
-    def calculate_volatility(self, x1: float, x2: float) -> VolatilityValue:
-        if x1 == x2:
-            return VolatilityValue(
-                ratio=Ratio.BALANCE,
-                volatility=0.0,
-                x1=x1,
-                x2=x2,
-            )
-
-        volatility = (x2 - x1) / x1 * 100
-
-        return VolatilityValue(
-            ratio=Ratio.UPSIDE if volatility > 0 else Ratio.DOWNSIDE,
-            volatility=round(abs(volatility), 1),
-            x1=x1,
-            x2=x2,
-        )
 
     def _make_request(self, method: str, url: str, params: dict):
         response = requests.request(

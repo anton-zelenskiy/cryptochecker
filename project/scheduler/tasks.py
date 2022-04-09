@@ -1,11 +1,12 @@
-from pycoingecko import CoinGeckoAPI
 from typing import Iterable, Set
 
-from project.core.redis import get_redis
 from project import settings
-from project.api.alphavantage_api import AlphadvantageAPI, Ratio
+from project.api.coingecko import get_currency_code_id_map, get_currency_prices
+from project.core.redis import get_redis
+from project.currencies.structures import Ratio
+from project.currencies.volatility import get_volatility_data
 
-cg = CoinGeckoAPI()
+default_currency_codes = {'BTC', 'ETH'}
 
 
 def send_currency_prices():
@@ -18,15 +19,36 @@ def send_currency_prices():
     if not chat_ids:
         return
 
-    currency_prices = cg.get_price(
-        ids=['bitcoin', 'ethereum', 'cardano', 'terra-luna'],
-        vs_currencies='usd'
-    )
+    currency_code_map = get_currency_code_id_map()
+    all_user_currencies = get_all_user_currencies(chat_ids)
+
+    user_currency_codes = set()
+    for curr in all_user_currencies.values():
+        user_currency_codes.update(set(curr))
+
+    all_currency_codes = default_currency_codes | user_currency_codes
+
+    currency_ids = [
+        currency_code_map.get(code)
+        for code in all_currency_codes
+    ]
+
+    currency_prices = get_currency_prices(currency_ids)
 
     for chat_id in chat_ids:
+        user_currencies = all_user_currencies.get(chat_id, [])
+        user_currency_prices = [
+            item for item in currency_prices
+            if item.currency_code in default_currency_codes | user_currencies
+        ]
+        prices_data = {
+            item.currency_code: item.price
+            for item in user_currency_prices
+        }
+
         tg_bot.send_message(
             chat_id=int(chat_id),
-            text=get_currency_prices_display(currency_prices),
+            text=get_currency_prices_display(prices_data),
             parse_mode='HTML',
         )
 
@@ -36,8 +58,8 @@ def send_currency_prices():
 def get_currency_prices_display(data):
     """Wraps info in html tags."""
     rows = []
-    for k, v in data.items():
-        rows.append(f"<i>{k}</i>: <b>{v['usd']}$</b>")
+    for code, price in data.items():
+        rows.append(f"<i>{code}</i>: <b>{price}$</b>")
 
     return '\n'.join(rows)
 
@@ -52,21 +74,23 @@ def check_volatility():
     if not chat_ids:
         return
 
-    currencies = ['BTC', 'ETH']
-    user_currencies_data = get_user_currencies_data(chat_ids)
+    all_user_currencies = get_all_user_currencies(chat_ids)
 
-    all_currencies = set(currencies)
-    for curr in user_currencies_data.values():
-        if curr:
-            all_currencies.update(set(curr))
+    user_currency_codes = set()
+    for curr in all_user_currencies.values():
+        user_currency_codes.update(set(curr))
 
-    volatility_data_by_currency = get_volatility_data(all_currencies)
+    all_currency_codes = default_currency_codes | user_currency_codes
+
+    volatility_data_by_currency = get_volatility_data_for_currencies(
+        all_currency_codes
+    )
 
     for chat_id in chat_ids:
-        user_currencies = user_currencies_data.get(chat_id, set())
+        user_currencies = all_user_currencies.get(chat_id, set())
         volatility_threshold = get_volatility_threshold(chat_id)
 
-        for currency in set(currencies) | set(user_currencies):
+        for currency in default_currency_codes | user_currencies:
             volatility = volatility_data_by_currency.get(currency)
 
             if not volatility:
@@ -88,17 +112,21 @@ def check_volatility():
                     )
 
 
-def get_user_currencies_data(chat_ids: Iterable[str]):
-    redis = get_redis()
-
+def get_all_user_currencies(chat_ids: Iterable[str]):
     result = {}
     for chat_id in chat_ids:
         result.update({
-            chat_id: redis.smembers(
-                f'volatility:user:{chat_id}:currencies'
-            ) or []
+            chat_id: get_user_currencies(chat_id)
         })
     return result
+
+
+def get_user_currencies(chat_id: str):
+    redis = get_redis()
+
+    return redis.smembers(
+        f'volatility:user:{chat_id}:currencies'
+    ) or set()
 
 
 def get_volatility_threshold(chat_id):
@@ -114,14 +142,20 @@ def get_volatility_threshold(chat_id):
     return volatility_threshold
 
 
-def get_volatility_data(currencies: Set[str]):
+def get_volatility_data_for_currencies(currency_codes: Set[str]):
     result = {}
 
-    api = AlphadvantageAPI()
+    currency_code_map = get_currency_code_id_map()
 
-    for currency in currencies:
+    for currency_code in currency_codes:
+        currency_id = currency_code_map.get(currency_code)
+        if not currency_id:
+            continue
+
         result.update({
-            currency: api.get_volatility(currency=currency)
+            currency_code: get_volatility_data(
+                currency_id=currency_id
+            )
         })
 
     return result
