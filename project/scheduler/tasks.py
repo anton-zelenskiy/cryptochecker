@@ -56,10 +56,9 @@ def check_volatility():
     user_currencies_data = get_user_currencies_data(chat_ids)
 
     all_currencies = set(currencies)
-    all_currencies.update({
-        set(curr) for curr in user_currencies_data.values()
-        if curr
-    })
+    for curr in user_currencies_data.values():
+        if curr:
+            all_currencies.update(set(curr))
 
     volatility_data_by_currency = get_volatility_data(all_currencies)
 
@@ -69,6 +68,9 @@ def check_volatility():
 
         for currency in set(currencies) | set(user_currencies):
             volatility = volatility_data_by_currency.get(currency)
+
+            if not volatility:
+                continue
 
             for period_min, volatility_data in volatility.items():
                 if volatility_data.volatility > volatility_threshold:
