@@ -27,6 +27,15 @@ logger = getLogger(__name__)
 
 
 def init_dispatcher(bot: Bot) -> Dispatcher:
+    """
+    start - Start bot
+    enable_notifications - Enable notifications
+    disable_notifications - Disable notifications
+    set_volatility - Set volatility threshold (%)
+    list_currencies - List of currencies used by volatility checker
+    add_currency - Add currency to volatility checker
+    del_currency - Delete currency from volatility checker
+    """
     queue = Queue()
     dp = Dispatcher(bot=bot, update_queue=queue)
     dp.add_handler(CommandHandler('start', start))
@@ -133,7 +142,7 @@ def list_currencies(update: Update, context: CallbackContext) -> None:
         """Wraps info in html tags."""
         rows = []
         for item in data:
-            rows.append(f'<b>{item}$</b>')
+            rows.append(f'<b>{item}</b>')
 
         return '\n'.join(rows)
 
