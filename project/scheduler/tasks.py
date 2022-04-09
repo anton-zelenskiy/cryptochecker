@@ -4,13 +4,14 @@ from typing import Iterable, Set
 from project.core.redis import get_redis
 from project import settings
 from project.api.alphavantage_api import AlphadvantageAPI, Ratio
-from project.app import tg_bot
 
 cg = CoinGeckoAPI()
 
 
 def send_currency_prices():
     """Notify subscribers about currency prices every hour."""
+    from project.app import tg_bot
+
     redis = get_redis()
     chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
 
@@ -43,6 +44,8 @@ def get_currency_prices_display(data):
 
 def check_volatility():
     """Notify subscribers about currency volatility."""
+    from project.app import tg_bot
+
     redis = get_redis()
     chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
 
