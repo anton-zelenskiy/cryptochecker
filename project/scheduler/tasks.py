@@ -5,6 +5,7 @@ from project.api.coingecko import get_currency_code_id_map, get_currency_prices
 from project.core.redis import get_redis
 from project.currencies.structures import Ratio
 from project.currencies.volatility import get_volatility_data
+from project.utils import get_currency_prices_display
 
 default_currency_codes = {'BTC', 'ETH'}
 
@@ -53,15 +54,6 @@ def send_currency_prices():
         )
 
     return currency_prices
-
-
-def get_currency_prices_display(data):
-    """Wraps info in html tags."""
-    rows = []
-    for code, price in data.items():
-        rows.append(f"<i>{code}</i>: <b>{price}$</b>")
-
-    return '\n'.join(rows)
 
 
 def check_volatility():

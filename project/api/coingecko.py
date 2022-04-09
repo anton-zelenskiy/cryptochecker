@@ -63,7 +63,7 @@ def get_currency_prices(currency_ids: List[str]):
     return [
         CurrencyPrice(
             currency_code=currency_id_code_map.get(currency_id),
-            price=price['usd'],
+            price=round(price['usd'], 2),
         )
         for currency_id, price in currency_prices.items()
     ]

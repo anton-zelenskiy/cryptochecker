@@ -5,7 +5,6 @@ from flask import Flask, request
 from flask_apscheduler import APScheduler
 
 from project import settings
-from project.api.telegram import TelegramAPI
 from project.dispatcher import init_dispatcher
 from project.scheduler.config import Config
 
@@ -20,7 +19,6 @@ scheduler = APScheduler()
 scheduler.init_app(app)
 scheduler.start()
 
-tg_api = TelegramAPI()
 tg_bot = telegram.Bot(settings.API_TOKEN)
 tg_bot.set_webhook(url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}')
 dispatcher = init_dispatcher(bot=tg_bot)
@@ -32,32 +30,22 @@ def index():
 
 
 @app.route(f'{WEBHOOK_URL_PATH}get/', methods=['GET'])
-def get_me():
-    res = tg_api.get_webhook_info()
+def get_webhook_info():
+    res = tg_bot.get_webhook_info()
 
     return f'Get-Result: {res}'
 
 
 @app.route(f'{WEBHOOK_URL_PATH}getMe/', methods=['GET'])
-def get_w():
+def get_me():
     res = tg_bot.get_me()
 
     return f'Get-Result: {res}'
 
 
-@app.route(f'{WEBHOOK_URL_PATH}set/', methods=['GET'])
-def set_w():
-    params = {
-        'url': f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}updates/'
-    }
-    res = tg_api.set_webhook(params)
-
-    return f'Set-Result: {res}'
-
-
 @app.route(f'{WEBHOOK_URL_PATH}delete/', methods=['GET'])
-def del_w():
-    res = tg_api.delete_webhook()
+def delete_webhook():
+    res = tg_bot.delete_webhook()
 
     return f'Delete-Result: {res}'
 

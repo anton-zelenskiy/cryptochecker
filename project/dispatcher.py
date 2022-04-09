@@ -2,9 +2,7 @@ import enum
 from logging import getLogger
 from queue import Queue
 
-import telegram
-from pycoingecko import CoinGeckoAPI
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Bot
 from telegram.ext import (
     Dispatcher,
     CommandHandler,
@@ -14,22 +12,24 @@ from telegram.ext import (
     CallbackContext,
 )
 
-from project.api.coingecko import is_currency_code_exists
-from project.core.redis import get_redis
 from project import settings
+from project.api.coingecko import (
+    is_currency_code_exists,
+    get_currency_prices,
+    get_currency_code_id_map,
+)
+from project.core.redis import get_redis
+from project.utils import get_currency_prices_display
 
-cg = CoinGeckoAPI()
 redis = get_redis()
 
 logger = getLogger(__name__)
 
 
-def init_dispatcher(bot: telegram.Bot) -> Dispatcher:
+def init_dispatcher(bot: Bot) -> Dispatcher:
     queue = Queue()
     dp = Dispatcher(bot=bot, update_queue=queue)
     dp.add_handler(CommandHandler('start', start))
-    dp.add_handler(CommandHandler('eth', eth))
-    dp.add_handler(CommandHandler('btc', btc))
     dp.add_handler(CommandHandler('enable_notifications', enable_notifications))
     dp.add_handler(
         CommandHandler('disable_notifications', disable_notifications)
@@ -46,10 +46,11 @@ def init_dispatcher(bot: telegram.Bot) -> Dispatcher:
     )
     dp.add_handler(volatility_handler)
 
+    dp.add_handler(CommandHandler('list_currencies', list_currencies))
     add_currency_handler = ConversationHandler(
         entry_points=[CommandHandler('add_currency', add_currency_command)],
         states={
-            AddCurrencyState.ADD_CURRENCY.value: [
+            CurrencyState.ADD_CURRENCY.value: [
                 MessageHandler(Filters.text, add_currency_value)
             ],
         },
@@ -57,35 +58,24 @@ def init_dispatcher(bot: telegram.Bot) -> Dispatcher:
     )
     dp.add_handler(add_currency_handler)
 
+    dp.add_handler(MessageHandler(Filters.all, currency_price))
+
     return dp
 
 
 def start(update: Update, context: CallbackContext):
-    """Starts the conversation and asks the user about their gender."""
-    reply_keyboard = [['Boy', 'Girl', 'Other']]
+    reply_keyboard = [
+        ['btc', 'eth', 'ada'],
+        ['doge', 'xrp', 'link'],
+    ]
 
     update.message.reply_text(
-        'Hi! My name is Professor Bot. I will hold a conversation with you. '
-        'Send /cancel to stop talking to me.\n\n'
-        'Are you a boy or a girl?',
+        'Hi! You can check currency price:',
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard,
             one_time_keyboard=True,
-            input_field_placeholder='Boy or Girl?'
         ),
     )
-
-
-def eth(update: Update, context: CallbackContext) -> None:
-    """Starts the conversation and asks the user about their gender."""
-    result = cg.get_price(ids=['ethereum'], vs_currencies='usd')
-    update.message.reply_text(result)
-
-
-def btc(update: Update, context: CallbackContext) -> None:
-    """Starts the conversation and asks the user about their gender."""
-    result = cg.get_price(ids=['bitcoin'], vs_currencies='usd')
-    update.message.reply_text(result)
 
 
 def enable_notifications(update: Update, context: CallbackContext) -> None:
@@ -102,8 +92,9 @@ class VolatilityState(enum.Enum):
     SET_VOLATILITY = 'SET'
 
 
-class AddCurrencyState(enum.Enum):
+class CurrencyState(enum.Enum):
     ADD_CURRENCY = 'ADD_CURRENCY'
+    DEL_CURRENCY = 'DEL_CURRENCY'
 
 
 def set_volatility_command(update: Update, context: CallbackContext) -> str:
@@ -126,10 +117,31 @@ def set_volatility_value(update: Update, context: CallbackContext) -> None:
     return ConversationHandler.END
 
 
+def list_currencies(update: Update, context: CallbackContext) -> None:
+    def get_display_data(data):
+        """Wraps info in html tags."""
+        rows = []
+        for item in data:
+            rows.append(f'<b>{item}$</b>')
+
+        return '\n'.join(rows)
+
+    user_currencies = redis.smembers(
+        f'volatility:user:{update.message.chat.id}:currencies'
+    )
+
+    update.message.reply_text(
+        get_display_data(user_currencies),
+        parse_mode='HTML'
+    )
+
+    return ConversationHandler.END
+
+
 def add_currency_command(update: Update, context: CallbackContext) -> str:
     update.message.reply_text('Please type currency code:')
 
-    return AddCurrencyState.ADD_CURRENCY.value
+    return CurrencyState.ADD_CURRENCY.value
 
 
 def add_currency_value(update: Update, context: CallbackContext) -> None:
@@ -137,13 +149,35 @@ def add_currency_value(update: Update, context: CallbackContext) -> None:
 
     if not is_currency_code_exists(currency_code):
         update.message.reply_text('invalid currency, try again:')
-        return VolatilityState.SET_VOLATILITY.value
+        return CurrencyState.ADD_CURRENCY.value
 
     redis.sadd(
         f'volatility:user:{update.message.chat.id}:currencies',
         currency_code
     )
     update.message.reply_text('Currency added successfully')
+
+    return ConversationHandler.END
+
+
+def del_currency_command(update: Update, context: CallbackContext) -> str:
+    update.message.reply_text('Please type currency code to delete:')
+
+    return CurrencyState.DEL_CURRENCY.value
+
+
+def del_currency_value(update: Update, context: CallbackContext) -> None:
+    currency_code = str(update.message.text).upper()
+
+    if not is_currency_code_exists(currency_code):
+        update.message.reply_text('invalid currency, try again:')
+        return CurrencyState.DEL_CURRENCY.value
+
+    redis.srem(
+        f'volatility:user:{update.message.chat.id}:currencies',
+        currency_code
+    )
+    update.message.reply_text('Currency deleted successfully')
 
     return ConversationHandler.END
 
@@ -156,3 +190,22 @@ def cancel(update: Update, context: CallbackContext) -> int:
     )
 
     return ConversationHandler.END
+
+
+def currency_price(update: Update, context: CallbackContext) -> None:
+    currency_code = update.message.text
+
+    currency_id = get_currency_code_id_map().get(currency_code)
+    if not currency_id:
+        update.message.reply_text('unknown command')
+
+    currency_prices = get_currency_prices(currency_ids=[currency_id])
+    prices_data = {
+        item.currency_code: item.price
+        for item in currency_prices
+    }
+
+    update.message.reply_text(
+        get_currency_prices_display(prices_data),
+        parse_mode='HTML'
+    )
