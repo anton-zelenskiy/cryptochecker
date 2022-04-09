@@ -20,7 +20,6 @@ def send_currency_prices():
     if not chat_ids:
         return
 
-    currency_code_map = get_currency_code_id_map()
     all_user_currencies = get_all_user_currencies(chat_ids)
 
     user_currency_codes = set()
@@ -29,12 +28,7 @@ def send_currency_prices():
 
     all_currency_codes = default_currency_codes | user_currency_codes
 
-    currency_ids = [
-        currency_code_map.get(code)
-        for code in all_currency_codes
-    ]
-
-    currency_prices = get_currency_prices(currency_ids)
+    currency_prices = get_currency_prices(currency_codes=all_currency_codes)
 
     for chat_id in chat_ids:
         user_currencies = all_user_currencies.get(chat_id, [])

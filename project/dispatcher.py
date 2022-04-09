@@ -16,7 +16,6 @@ from project import settings
 from project.api.coingecko import (
     is_currency_code_exists,
     get_currency_prices,
-    get_currency_code_id_map,
 )
 from project.core.redis import get_redis
 from project.utils import get_currency_prices_display
@@ -213,13 +212,12 @@ def cancel(update: Update, context: CallbackContext) -> int:
 
 
 def currency_price(update: Update, context: CallbackContext) -> None:
-    currency_code = update.message.text
+    currency_code = str(update.message.text).upper()
 
-    currency_id = get_currency_code_id_map().get(currency_code)
-    if not currency_id:
+    if not is_currency_code_exists(currency_code):
         update.message.reply_text('unknown command')
 
-    currency_prices = get_currency_prices(currency_ids=[currency_id])
+    currency_prices = get_currency_prices(currency_codes=[currency_code])
     prices_data = {
         item.currency_code: item.price
         for item in currency_prices
