@@ -51,7 +51,7 @@ def get_daily_currency_history(currency_id: str) -> List[HistoryData]:
     prices_data = data.get('prices', [])
 
     return [
-        HistoryData(unix_timestamp=ts, value=round(price, 2))
+        HistoryData(unix_timestamp=ts, value=round(price, 5))
         for ts, price in prices_data
     ]
 
@@ -73,7 +73,7 @@ def get_currency_prices(currency_codes: Iterable[str]):
     return [
         CurrencyPrice(
             currency_code=currency_id_code_map.get(currency_id),
-            price=round(price['usd'], 2),
+            price=round(price['usd'], 5),
         )
         for currency_id, price in currency_prices.items()
     ]
