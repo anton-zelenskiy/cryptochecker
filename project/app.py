@@ -15,6 +15,9 @@ WEBHOOK_URL_PATH = f'/{settings.API_TOKEN}/'
 
 app = Flask(__name__)
 app.config.from_object(Config())
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
 
 tg_bot = telegram.Bot(settings.API_TOKEN)
 tg_bot.set_webhook(url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}')
@@ -60,6 +63,3 @@ def updates():
 
 if __name__ == '__main__':
     app.run()
-    scheduler = APScheduler()
-    scheduler.init_app(app)
-    scheduler.start()
