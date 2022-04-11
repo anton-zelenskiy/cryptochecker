@@ -6,15 +6,7 @@ from flask_apscheduler import APScheduler
 
 from project import settings
 from project.dispatcher import init_dispatcher
-from project.scheduler.config import (
-    Config,
-    cron_send_currencies_price,
-    cron_check_volatility,
-)
-from project.scheduler.tasks import (
-    send_currency_prices,
-    check_volatility,
-)
+from project.scheduler.config import Config
 
 dictConfig(settings.LOGGING_CONFIG)
 
@@ -26,8 +18,6 @@ app.config.from_object(Config())
 scheduler = APScheduler()
 scheduler.init_app(app)
 scheduler.start()
-scheduler.add_job(send_currency_prices, cron_send_currencies_price)
-scheduler.add_job(check_volatility, cron_check_volatility)
 
 tg_bot = telegram.Bot(settings.API_TOKEN)
 tg_bot.set_webhook(url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}')
