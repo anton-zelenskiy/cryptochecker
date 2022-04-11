@@ -1,5 +1,5 @@
 from logging.config import dictConfig
-
+import atexit
 import telegram
 from flask import Flask, request
 from flask_apscheduler import APScheduler
@@ -12,6 +12,8 @@ dictConfig(settings.LOGGING_CONFIG)
 
 WEBHOOK_URL_BASE = f'https://{settings.WEBHOOK_HOST}:{settings.WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{settings.API_TOKEN}/'
+
+atexit.register(lambda: scheduler.shutdown())
 
 app = Flask(__name__)
 app.config.from_object(Config())
