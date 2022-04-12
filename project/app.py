@@ -13,13 +13,7 @@ dictConfig(settings.LOGGING_CONFIG)
 WEBHOOK_URL_BASE = f'https://{settings.WEBHOOK_HOST}:{settings.WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{settings.API_TOKEN}/'
 
-atexit.register(lambda: scheduler.shutdown())
-
 app = Flask(__name__)
-app.config.from_object(Config())
-scheduler = APScheduler()
-scheduler.init_app(app)
-scheduler.start()
 
 tg_bot = telegram.Bot(settings.API_TOKEN)
 tg_bot.set_webhook(url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}')
@@ -64,4 +58,10 @@ def updates():
 
 
 if __name__ == '__main__':
+    app.config.from_object(Config())
+    scheduler = APScheduler()
+    scheduler.init_app(app)
+    scheduler.start()
+    atexit.register(lambda: scheduler.shutdown())
+
     app.run()

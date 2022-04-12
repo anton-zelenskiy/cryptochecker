@@ -15,11 +15,25 @@ class Config:
             'minute': '*/5',
         },
         {
-            'id': 'check_volatility_10',
+            'id': 'check_volatility_15',
             'func': 'project.scheduler.tasks:check_volatility',
-            'args': (10,),
+            'args': (15,),
             'trigger': 'cron',
-            'minute': '*/10',
+            'minute': '*/15',
+        },
+        {
+            'id': 'check_volatility_30',
+            'func': 'project.scheduler.tasks:check_volatility',
+            'args': (30,),
+            'trigger': 'cron',
+            'minute': '*/30',
+        },
+        {
+            'id': 'check_volatility_60',
+            'func': 'project.scheduler.tasks:check_volatility',
+            'args': (60,),
+            'trigger': 'cron',
+            'hour': '*/1',
         },
     ]
     SCHEDULER_API_ENABLED = True
