@@ -1,11 +1,11 @@
-from project.api.coingecko import get_daily_currency_history
+from project.api.coingecko import get_daily_currency_history, STEP_MINUTES
 from .structures import (
     VolatilityValue,
     Ratio,
 )
 
 
-def get_volatility_data(currency_id: str):
+def get_volatility_data(currency_id: str, minutes: int) -> VolatilityValue:
     prices_data = get_daily_currency_history(
         currency_id=currency_id,
     )
@@ -17,20 +17,14 @@ def get_volatility_data(currency_id: str):
     )
     latest_value = sorted_prices_data[0].value
 
+    index = minutes // STEP_MINUTES
+
     try:
-        five_min_ago = sorted_prices_data[1].value
-        fifteen_min_ago = sorted_prices_data[3].value
-        thirty_min_ago = sorted_prices_data[6].value
-        hour_ago = sorted_prices_data[12].value
+        minutes_ago = sorted_prices_data[index].value
     except KeyError:
         raise Exception('error getting historical price')
 
-    return {
-        5: calculate_volatility(five_min_ago, latest_value),
-        15: calculate_volatility(fifteen_min_ago, latest_value),
-        30: calculate_volatility(thirty_min_ago, latest_value),
-        60: calculate_volatility(hour_ago, latest_value),
-    }
+    return calculate_volatility(minutes_ago, latest_value)
 
 
 def calculate_volatility(x1: float, x2: float) -> VolatilityValue:

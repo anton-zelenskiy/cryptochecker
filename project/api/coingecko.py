@@ -14,6 +14,9 @@ CURRENCY_CODE_ID_OVERRIDE_MAP = {
 }
 
 
+STEP_MINUTES = 5
+
+
 @lru_cache(maxsize=1024)
 def get_currency_code_id_map() -> dict:
     coins = api.get_coins_list()

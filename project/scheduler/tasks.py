@@ -50,7 +50,7 @@ def send_currency_prices():
     return currency_prices
 
 
-def check_volatility():
+def check_volatility(minutes: int):
     """Notify subscribers about currency volatility."""
     from project.app import tg_bot
 
@@ -69,7 +69,8 @@ def check_volatility():
     all_currency_codes = default_currency_codes | user_currency_codes
 
     volatility_data_by_currency = get_volatility_data_for_currencies(
-        all_currency_codes
+        currency_codes=all_currency_codes,
+        minutes=minutes
     )
 
     for chat_id in chat_ids:
@@ -82,20 +83,19 @@ def check_volatility():
             if not volatility:
                 continue
 
-            for period_min, volatility_data in volatility.items():
-                if volatility_data.volatility > volatility_threshold:
-                    ratio = Ratio.get_ratio_display(volatility_data.ratio)
-                    message = (
-                        f'Price alert for {currency}. Period (min): {period_min}, '
-                        f'volatility: {volatility_data.volatility} % ({ratio}), '
-                        f'latest price: {volatility_data.x2}, '
-                        f'old price: {volatility_data.x1}'
-                    )
-                    tg_bot.send_message(
-                        chat_id=int(chat_id),
-                        text=message,
-                        parse_mode='HTML',
-                    )
+            if volatility.volatility > volatility_threshold:
+                ratio = Ratio.get_ratio_display(volatility.ratio)
+                message = (
+                    f'Price alert for {currency}. Period (min): {minutes}, '
+                    f'volatility: {volatility.volatility} % ({ratio}), '
+                    f'latest price: {volatility.x2}, '
+                    f'old price: {volatility.x1}'
+                )
+                tg_bot.send_message(
+                    chat_id=int(chat_id),
+                    text=message,
+                    parse_mode='HTML',
+                )
 
 
 def get_all_user_currencies(chat_ids: Iterable[str]):
@@ -128,7 +128,10 @@ def get_volatility_threshold(chat_id):
     return volatility_threshold
 
 
-def get_volatility_data_for_currencies(currency_codes: Set[str]):
+def get_volatility_data_for_currencies(
+    currency_codes: Set[str],
+    minutes: int
+):
     result = {}
 
     currency_code_map = get_currency_code_id_map()
@@ -140,7 +143,8 @@ def get_volatility_data_for_currencies(currency_codes: Set[str]):
 
         result.update({
             currency_code: get_volatility_data(
-                currency_id=currency_id
+                currency_id=currency_id,
+                minutes=minutes
             )
         })
 
