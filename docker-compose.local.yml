@@ -14,7 +14,7 @@ services:
       - .env.dev
     volumes:
       - ./project:/home/project
-    command: gunicorn -w 1 -b :5001 app:app
+    command: gunicorn -w 1 --preload -b :5001 app:app
   nginx:
     image: nginx:alpine
     ports:

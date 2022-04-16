@@ -15,7 +15,7 @@ services:
       - .env.prod
     volumes:
       - ./project:/home/project
-    command: gunicorn -w 1 -b :5001 app:app
+    command: gunicorn -w 1 --preload -b :5001 app:app
   redis:
     image: redis:3.2.11
     networks:
