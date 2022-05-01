@@ -20,7 +20,7 @@ def register_jobs(scheduler):
 
 
 def task_send_currency_prices(scheduler):
-    job = scheduler.add_job(
+    scheduler.add_job(
         send_currency_prices,
         id='send_currency_prices',
         jobstore='redis',
@@ -29,13 +29,12 @@ def task_send_currency_prices(scheduler):
         hour='*/1',
         args=[],
     )
-    return job
 
 
 def task_check_volatility(scheduler):
     minutes_ago = [5, 15, 30, 60, 120]
     for minutes in minutes_ago:
-        job = scheduler.add_job(
+        scheduler.add_job(
             check_volatility,
             id=f'check_volatility_{minutes}',
             jobstore='redis',
@@ -44,4 +43,3 @@ def task_check_volatility(scheduler):
             minute=f'*/{minutes}',
             args=[minutes],
         )
-        return job
