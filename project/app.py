@@ -1,12 +1,14 @@
-from logging.config import dictConfig
 import atexit
+from logging.config import dictConfig
+
 import telegram
+from apscheduler.jobstores.redis import RedisJobStore
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, request
-from flask_apscheduler import APScheduler
 
 from project import settings
 from project.dispatcher import init_dispatcher
-from project.scheduler.config import Config
+from project.scheduler import register_jobs
 
 dictConfig(settings.LOGGING_CONFIG)
 
@@ -21,10 +23,19 @@ dispatcher = init_dispatcher(bot=tg_bot)
 def create_app():
     app = Flask(__name__)
 
-    app.config.from_object(Config())
-    scheduler = APScheduler()
-    scheduler.init_app(app)
+    scheduler = BackgroundScheduler(
+        {'apscheduler.timezone': 'Europe/Moscow'},
+        jobstores={
+            'redis': RedisJobStore(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                password=settings.REDIS_PASSWORD,
+            ),
+        },
+        daemon=True,
+    )
     scheduler.start()
+    register_jobs(scheduler)
 
     atexit.register(lambda: scheduler.shutdown())
 
@@ -63,8 +74,8 @@ def create_app():
     return app
 
 
-app = create_app()
+application = create_app()
 
 
 if __name__ == '__main__':
-    app.run(use_reloader=False)
+    application.run(use_reloader=False)

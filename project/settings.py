@@ -28,6 +28,7 @@ WEBHOOK_PORT = os.getenv('WEBHOOK_PORT', 443)
 
 REDIS_HOST = 'redis'
 REDIS_PORT = 6379
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'redis_password')
 CHATS_CACHE_KEY = 'chats'
 
 
