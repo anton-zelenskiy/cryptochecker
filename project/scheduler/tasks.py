@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 def register_jobs(scheduler):
     try:
         task_send_currency_prices(scheduler)
+        task_check_volatility(scheduler)
     except ConflictingIdError:
         logger.info('conflicting jobs')
         pass
