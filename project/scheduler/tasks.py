@@ -32,14 +32,21 @@ def task_send_currency_prices(scheduler):
 
 
 def task_check_volatility(scheduler):
-    minutes_ago = [5, 15, 30, 60, 120]
-    for minutes in minutes_ago:
+    task_settings = (
+        (5, {'minute': '*/5'}),
+        (15, {'minute': '*/15'}),
+        (30, {'minute': '*/30'}),
+        (60, {'hour': '*/1'}),
+        (120, {'hour': '*/2'}),
+    )
+
+    for minutes, cron_time in task_settings:
         scheduler.add_job(
             check_volatility,
             id=f'check_volatility_{minutes}',
             jobstore='redis',
             replace_existing=True,
             trigger='cron',
-            minute=f'*/{minutes}',
             args=[minutes],
+            **cron_time,
         )
