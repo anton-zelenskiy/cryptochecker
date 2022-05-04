@@ -24,7 +24,7 @@ def create_app():
     app = Flask(__name__)
 
     scheduler = BackgroundScheduler(
-        {'apscheduler.timezone': 'Europe/Moscow'},
+        {'apscheduler.timezone': 'Asia/Tbilisi'},
         jobstores={
             'redis': RedisJobStore(
                 host=settings.REDIS_HOST,

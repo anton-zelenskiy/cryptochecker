@@ -43,6 +43,7 @@ def task_check_volatility(scheduler):
     for minutes, cron_time in task_settings:
         scheduler.add_job(
             check_volatility,
+            name=f'check_volatility_{minutes}',
             id=f'check_volatility_{minutes}',
             jobstore='redis',
             replace_existing=True,
