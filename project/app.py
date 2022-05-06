@@ -1,4 +1,5 @@
 import atexit
+import logging
 from logging.config import dictConfig
 
 import telegram
@@ -20,6 +21,14 @@ tg_bot.set_webhook(url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}')
 dispatcher = init_dispatcher(bot=tg_bot)
 
 
+logger = logging.getLogger(__name__)
+
+
+def test_task():
+    logger.info('TASK EXECUTED')
+    return 1
+
+
 def create_app():
     app = Flask(__name__)
 
@@ -34,9 +43,19 @@ def create_app():
         },
         daemon=True,
     )
-    register_jobs(scheduler)
     if not scheduler.running:
         scheduler.start()
+
+    register_jobs(scheduler)
+    scheduler.add_job(
+        test_task,
+        id='test_task',
+        jobstore='redis',
+        replace_existing=True,
+        trigger='cron',
+        minute='*/1',
+        args=[],
+    )
 
     atexit.register(lambda: scheduler.shutdown())
 
