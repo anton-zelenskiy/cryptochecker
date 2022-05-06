@@ -24,24 +24,21 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 
-@app.before_first_request
-def init_scheduler():
-    scheduler = BackgroundScheduler(
-        {'apscheduler.timezone': 'Asia/Tbilisi'},
-        jobstores={
-            'redis': RedisJobStore(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                password=settings.REDIS_PASSWORD,
-            ),
-        },
-        daemon=True,
-    )
-    scheduler.start()
-    logger.info('SCHEDULER REGISTERED')
-    register_jobs(scheduler)
+scheduler = BackgroundScheduler(
+    {'apscheduler.timezone': 'Asia/Tbilisi'},
+    jobstores={
+        'redis': RedisJobStore(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            password=settings.REDIS_PASSWORD,
+        ),
+    },
+    daemon=True,
+)
+scheduler.start()
+register_jobs(scheduler)
 
-    atexit.register(lambda: scheduler.shutdown())
+atexit.register(lambda: scheduler.shutdown())
 
 
 @app.route('/', methods=['GET', 'HEAD'])
