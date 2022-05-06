@@ -1,7 +1,6 @@
 import atexit
 import logging
 from logging.config import dictConfig
-import os
 import telegram
 from apscheduler.jobstores.redis import RedisJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -20,11 +19,13 @@ tg_bot = telegram.Bot(settings.API_TOKEN)
 tg_bot.set_webhook(url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}')
 dispatcher = init_dispatcher(bot=tg_bot)
 
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
 
-if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+@app.before_first_request
+def init_scheduler():
     scheduler = BackgroundScheduler(
         {'apscheduler.timezone': 'Asia/Tbilisi'},
         jobstores={
@@ -37,10 +38,10 @@ if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         daemon=True,
     )
     scheduler.start()
+    logger.info('SCHEDULER REGISTERED')
     register_jobs(scheduler)
 
-
-atexit.register(lambda: scheduler.shutdown())
+    atexit.register(lambda: scheduler.shutdown())
 
 
 @app.route('/', methods=['GET', 'HEAD'])
