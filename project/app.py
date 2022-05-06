@@ -29,72 +29,72 @@ def test_task():
     return 1
 
 
-def create_app():
-    app = Flask(__name__)
+app = Flask(__name__)
 
-    scheduler = BackgroundScheduler(
-        {'apscheduler.timezone': 'Asia/Tbilisi'},
-        jobstores={
-            'redis': RedisJobStore(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                password=settings.REDIS_PASSWORD,
-            ),
-        },
-        daemon=True,
+scheduler = BackgroundScheduler(
+    {'apscheduler.timezone': 'Asia/Tbilisi'},
+    jobstores={
+        'redis': RedisJobStore(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            password=settings.REDIS_PASSWORD,
+        ),
+    },
+    daemon=True,
+)
+
+if not scheduler.running:
+    scheduler.start()
+
+
+scheduler.add_job(
+    test_task,
+    id='test_task',
+    jobstore='redis',
+    replace_existing=True,
+    trigger='cron',
+    minute='*/1',
+    args=[],
+)
+
+atexit.register(lambda: scheduler.shutdown())
+
+
+@app.route('/', methods=['GET', 'HEAD'])
+def index():
+    return 'Hi there!'
+
+
+@app.route(f'{WEBHOOK_URL_PATH}get/', methods=['GET'])
+def get_webhook_info():
+    res = tg_bot.get_webhook_info()
+
+    return f'Get-Result: {res}'
+
+
+@app.route(f'{WEBHOOK_URL_PATH}getMe/', methods=['GET'])
+def get_me():
+    res = tg_bot.get_me()
+
+    return f'Get-Result: {res}'
+
+
+@app.route(f'{WEBHOOK_URL_PATH}delete/', methods=['GET'])
+def delete_webhook():
+    res = tg_bot.delete_webhook()
+
+    return f'Delete-Result: {res}'
+
+
+@app.route(f'{WEBHOOK_URL_PATH}', methods=['POST'])
+def updates():
+    update = telegram.update.Update.de_json(
+        request.get_json(force=True),
+        bot=tg_bot,
     )
-    if not scheduler.running:
-        scheduler.start()
+    dispatcher.process_update(update)
 
-    register_jobs(scheduler)
-    scheduler.add_job(
-        test_task,
-        id='test_task',
-        jobstore='redis',
-        replace_existing=True,
-        trigger='cron',
-        minute='*/1',
-        args=[],
-    )
-
-    atexit.register(lambda: scheduler.shutdown())
-
-    @app.route('/', methods=['GET', 'HEAD'])
-    def index():
-        return 'Hi there!'
-
-    @app.route(f'{WEBHOOK_URL_PATH}get/', methods=['GET'])
-    def get_webhook_info():
-        res = tg_bot.get_webhook_info()
-
-        return f'Get-Result: {res}'
-
-    @app.route(f'{WEBHOOK_URL_PATH}getMe/', methods=['GET'])
-    def get_me():
-        res = tg_bot.get_me()
-
-        return f'Get-Result: {res}'
-
-    @app.route(f'{WEBHOOK_URL_PATH}delete/', methods=['GET'])
-    def delete_webhook():
-        res = tg_bot.delete_webhook()
-
-        return f'Delete-Result: {res}'
-
-    @app.route(f'{WEBHOOK_URL_PATH}', methods=['POST'])
-    def updates():
-        update = telegram.update.Update.de_json(
-            request.get_json(force=True),
-            bot=tg_bot,
-        )
-        dispatcher.process_update(update)
-
-        return ''
-
-    return app
-
-
-app = create_app()
+    return ''
 
 
 if __name__ == '__main__':
