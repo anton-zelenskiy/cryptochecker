@@ -1,7 +1,7 @@
 import atexit
 import logging
 from logging.config import dictConfig
-
+import os
 import telegram
 from apscheduler.jobstores.redis import RedisJobStore
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -21,41 +21,24 @@ tg_bot.set_webhook(url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}')
 dispatcher = init_dispatcher(bot=tg_bot)
 
 
-logger = logging.getLogger(__name__)
-
-
-def test_task():
-    logger.info('TASK EXECUTED')
-    return 1
-
-
 app = Flask(__name__)
 
-scheduler = BackgroundScheduler(
-    {'apscheduler.timezone': 'Asia/Tbilisi'},
-    jobstores={
-        'redis': RedisJobStore(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            password=settings.REDIS_PASSWORD,
-        ),
-    },
-    daemon=True,
-)
 
-if not scheduler.running:
+if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    scheduler = BackgroundScheduler(
+        {'apscheduler.timezone': 'Asia/Tbilisi'},
+        jobstores={
+            'redis': RedisJobStore(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                password=settings.REDIS_PASSWORD,
+            ),
+        },
+        daemon=True,
+    )
     scheduler.start()
+    register_jobs(scheduler)
 
-
-scheduler.add_job(
-    test_task,
-    id='test_task',
-    jobstore='redis',
-    replace_existing=True,
-    trigger='cron',
-    minute='*/1',
-    args=[],
-)
 
 atexit.register(lambda: scheduler.shutdown())
 
