@@ -1,3 +1,4 @@
+import logging
 from typing import Iterable, Set
 
 from project import settings
@@ -8,6 +9,8 @@ from project.currencies.volatility import get_volatility_data
 from project.utils import get_currency_prices_display
 
 default_currency_codes = {'BTC', 'ETH'}
+
+logger = logging.getLogger(__name__)
 
 
 def send_currency_prices():
@@ -53,6 +56,8 @@ def send_currency_prices():
 def check_volatility(minutes: int):
     """Notify subscribers about currency volatility."""
     from project.app import tg_bot
+
+    logger.info(f'TASK RUN {minutes}')
 
     redis = get_redis()
     chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
