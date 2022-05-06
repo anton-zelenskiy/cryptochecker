@@ -34,8 +34,9 @@ def create_app():
         },
         daemon=True,
     )
-    scheduler.start()
     register_jobs(scheduler)
+    if not scheduler.running:
+        scheduler.start()
 
     atexit.register(lambda: scheduler.shutdown())
 
