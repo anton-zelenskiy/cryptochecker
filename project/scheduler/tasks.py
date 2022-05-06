@@ -33,6 +33,7 @@ def task_send_currency_prices(scheduler):
 
 def task_check_volatility(scheduler):
     task_settings = (
+        (1, {'minute': '*/1'}),
         (5, {'minute': '*/5'}),
         (15, {'minute': '*/15'}),
         (30, {'minute': '*/30'}),
