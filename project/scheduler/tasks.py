@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def register_jobs(scheduler):
+    scheduler.remove_all_jobs()
     try:
         task_send_currency_prices(scheduler)
         task_check_volatility(scheduler)
