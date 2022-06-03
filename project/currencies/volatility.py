@@ -1,8 +1,11 @@
+import logging
 from project.api.coingecko import get_daily_currency_history, STEP_MINUTES
 from .structures import (
     VolatilityValue,
     Ratio,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_volatility_data(currency_id: str, minutes: int) -> VolatilityValue:
@@ -20,6 +23,7 @@ def get_volatility_data(currency_id: str, minutes: int) -> VolatilityValue:
     index = minutes // STEP_MINUTES
 
     try:
+        logger.info(f'>>>: {str(sorted_prices_data)}')
         minutes_ago = sorted_prices_data[index].value
     except KeyError:
         raise Exception('error getting historical price')
