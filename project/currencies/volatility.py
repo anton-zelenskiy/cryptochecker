@@ -23,7 +23,6 @@ def get_volatility_data(currency_id: str, minutes: int) -> VolatilityValue:
     index = minutes // STEP_MINUTES
 
     try:
-        print('>>>', currency_id, minutes, sorted_prices_data)
         minutes_ago = sorted_prices_data[index].value
     except KeyError:
         raise Exception('error getting historical price')

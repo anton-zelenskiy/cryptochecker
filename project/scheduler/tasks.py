@@ -5,6 +5,7 @@ from apscheduler.jobstores.base import ConflictingIdError
 from .check_volatility import (
     send_currency_prices,
     check_volatility,
+    check_candles,
 )
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ def register_jobs(scheduler):
     try:
         task_send_currency_prices(scheduler)
         task_check_volatility(scheduler)
+        task_check_candles(scheduler)
     except ConflictingIdError:
         logger.info('conflicting jobs')
         pass
@@ -52,3 +54,16 @@ def task_check_volatility(scheduler):
             args=[minutes],
             **cron_time,
         )
+
+
+def task_check_candles(scheduler):
+    scheduler.add_job(
+        check_candles,
+        id='check_candles',
+        jobstore='redis',
+        replace_existing=True,
+        trigger='cron',
+        hour='*/1',
+        minute=2,
+        args=[],
+    )

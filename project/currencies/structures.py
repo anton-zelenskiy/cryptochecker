@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+import datetime
 
 
 class Ratio(Enum):
@@ -33,3 +34,12 @@ class HistoryData:
 class CurrencyPrice:
     currency_code: str
     price: float
+
+
+@dataclass(frozen=True)
+class CandleData:
+    datetime: datetime.datetime
+    open: int
+    high: int
+    low: int
+    close: int

@@ -1,9 +1,10 @@
+import datetime
 from functools import lru_cache
 from typing import List, Iterable
 
 from pycoingecko import CoinGeckoAPI
 
-from project.currencies.structures import HistoryData, CurrencyPrice
+from project.currencies.structures import HistoryData, CurrencyPrice, CandleData
 
 api = CoinGeckoAPI()
 
@@ -79,4 +80,26 @@ def get_currency_prices(currency_codes: Iterable[str]):
             price=round(price['usd'], 5),
         )
         for currency_id, price in currency_prices.items()
+    ]
+
+
+def get_ohlc(currency_code: str) -> List[CandleData]:
+    currency_code_id_map = get_currency_code_id_map()
+    currency_id = currency_code_id_map.get(currency_code)
+
+    data = api.get_coin_ohlc_by_id(
+        id=currency_id,
+        vs_currency='usd',
+        days=1
+    )
+
+    return [
+        CandleData(
+            datetime=datetime.datetime.fromtimestamp(ts / 1000),
+            open=open_,
+            high=high_,
+            low=low_,
+            close=close_,
+        )
+        for ts, open_, high_, low_, close_ in data
     ]

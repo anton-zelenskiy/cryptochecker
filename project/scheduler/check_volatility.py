@@ -1,11 +1,19 @@
+import itertools
 import logging
 from typing import Iterable, Set
 
 from project import settings
-from project.api.coingecko import get_currency_code_id_map, get_currency_prices
+from project.api.coingecko import (
+    get_currency_code_id_map,
+    get_currency_prices,
+    get_ohlc,
+)
 from project.core.redis import get_redis
 from project.currencies.structures import Ratio
-from project.currencies.volatility import get_volatility_data
+from project.currencies.volatility import (
+    get_volatility_data,
+    calculate_volatility,
+)
 from project.utils import get_currency_prices_display
 
 default_currency_codes = {'BTC', 'ETH'}
@@ -154,3 +162,81 @@ def get_volatility_data_for_currencies(
         })
 
     return result
+
+
+def get_candles_data_for_currencies(
+    currency_codes: Set[str]
+):
+    result = {}
+
+    for currency_code in currency_codes:
+        result.update({
+            currency_code: get_ohlc(
+                currency_code=currency_code,
+            )
+        })
+
+    return result
+
+
+def check_candles():
+    from project.app import tg_bot
+    candles_count = 4
+
+    redis = get_redis()
+    chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
+
+    if not chat_ids:
+        return
+
+    all_user_currencies = get_all_user_currencies(chat_ids)
+
+    user_currency_codes = set()
+    for curr in all_user_currencies.values():
+        user_currency_codes.update(set(curr))
+
+    all_currency_codes = default_currency_codes | user_currency_codes
+
+    candle_data_by_currency = get_candles_data_for_currencies(
+        currency_codes=all_currency_codes
+    )
+
+    for chat_id in chat_ids:
+        user_currencies = all_user_currencies.get(chat_id, set())
+
+        for currency in default_currency_codes | user_currencies:
+            candle_data = candle_data_by_currency.get(currency)
+
+            if not candle_data:
+                continue
+
+            latest_values = candle_data[-candles_count:]
+            closes = [item.close for item in latest_values]
+
+            is_downtrend = all(
+                x < y
+                for x, y in itertools.pairwise(closes)
+            )
+            is_uptrend = all(
+                x > y
+                for x, y in itertools.pairwise(closes)
+            )
+
+            volatility = calculate_volatility(closes[0], closes[-1])
+            ratio = Ratio.get_ratio_display(volatility.ratio)
+
+            if volatility.volatility < 0.5:
+                continue
+
+            if not is_uptrend or not is_downtrend:
+                continue
+
+            message = (
+                f'{currency}: {ratio} ({candles_count} candles), '
+                f'{volatility.volatility}%'
+            )
+            tg_bot.send_message(
+                chat_id=int(chat_id),
+                text=message,
+                parse_mode='HTML',
+            )
