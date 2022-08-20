@@ -179,9 +179,10 @@ def get_candles_data_for_currencies(
     return result
 
 
-def check_candles(candles=None):
+def check_candles(candles_count=None, threshold=None):
     from project.app import tg_bot
-    candles_count = candles or 4
+    candles_count = candles_count or 4
+    threshold = threshold or 0.5
 
     redis = get_redis()
     chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
