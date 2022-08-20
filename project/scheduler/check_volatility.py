@@ -229,7 +229,7 @@ def check_candles(candles_count=None, threshold=None):
             if volatility.volatility < threshold:
                 continue
 
-            if not is_uptrend or not is_downtrend:
+            if not (is_uptrend or is_downtrend):
                 continue
 
             message = (
