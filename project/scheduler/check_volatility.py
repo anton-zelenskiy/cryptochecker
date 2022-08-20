@@ -226,7 +226,7 @@ def check_candles(candles_count=None, threshold=None):
             volatility = calculate_volatility(closes[0], closes[-1])
             ratio = Ratio.get_ratio_display(volatility.ratio)
 
-            if volatility.volatility < 0.5:
+            if volatility.volatility < threshold:
                 continue
 
             if not is_uptrend or not is_downtrend:
