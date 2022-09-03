@@ -6,11 +6,9 @@ on:
       - 'feature/add-python-telegram-bot'
 
 jobs:
-
   redeploy:
     name: Redeploy webhook call
     runs-on: ubuntu-18.04
-    needs: [ docker ]
     steps:
       - name: Deploy docker container webhook
         uses: joelwmale/webhook-action@master
