@@ -19,7 +19,20 @@ services:
     image: redis:latest
     networks:
       - app_2
-    command: redis-server --requirepass redis_password
+#    command: redis-server --requirepass redis_password
+  worker:
+    build: .
+    command: celery -A scheduler worker -B -l info -Q default
+    env_file:
+      - .env.prod
+    volumes:
+      - ./project:/home/project
+    links:
+      - redis
+    depends_on:
+      - redis
+    networks:
+      - app_2
 
 networks:
   app_2:

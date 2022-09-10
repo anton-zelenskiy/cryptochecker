@@ -33,7 +33,31 @@ services:
     image: redis:latest
     networks:
       - custom_network
-    command: redis-server --requirepass redis_password
+#    command: redis-server --requirepass redis_password
+  worker:
+    build: .
+    image: app:latest
+    command: celery -A project.app.celery worker -l info -Q default
+    env_file:
+      - .env.dev
+    volumes:
+      - ./project:/home/project
+    links:
+      - redis
+    depends_on:
+      - redis
+    networks:
+      - custom_network
+  beat:
+    build: .
+    image: app:latest
+    networks:
+      - custom_network
+    entrypoint: celery -A project.app.celery beat -l info
+    env_file:
+      - .env.dev
+    volumes:
+      - ./project:/home/project
 
 networks:
   custom_network:
