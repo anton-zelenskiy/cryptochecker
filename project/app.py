@@ -1,39 +1,12 @@
-import atexit
 import logging
 from logging.config import dictConfig
+
 import telegram
-from apscheduler.jobstores.redis import RedisJobStore
-from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, request
 
 from project import settings
+from project.celery_app import make_celery, CELERY_CONFIG
 from project.dispatcher import init_dispatcher
-# from project.scheduler import register_jobs
-
-from project import settings
-
-from celery import Celery
-from celery.schedules import crontab
-
-task_default_queue = 'default'
-
-CELERY_TIMEZONE = 'Asia/Tbilisi'
-
-broker_url = settings.CELERY_BROKER_URL
-result_backend = settings.CELERY_RESULT_BACKEND
-
-beat_schedule = {
-    'task_check_volatility': {
-        'task': 'project.scheduler.tasks.task_check_volatility',
-        'schedule': crontab(minute='*/5'),
-        'args': (5,)
-    },
-    'task_send_currency_prices': {
-        'task': 'project.scheduler.tasks.task_send_currency_prices',
-        'schedule': crontab(minute='*/1')
-    },
-}
-
 
 dictConfig(settings.LOGGING_CONFIG)
 
@@ -47,15 +20,8 @@ dispatcher = init_dispatcher(bot=tg_bot)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-
-celery = Celery(
-    'project',
-    broker=settings.CELERY_BROKER_URL,
-    backend=settings.CELERY_RESULT_BACKEND,
-    include=['project.scheduler.tasks']
-)
-# celery.conf.update(app.config)
-celery.autodiscover_tasks()
+app.config.update(CELERY_CONFIG=CELERY_CONFIG)
+celery = make_celery(app)
 
 
 @app.route('/', methods=['GET', 'HEAD'])

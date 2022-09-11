@@ -19,10 +19,10 @@ services:
     image: redis:latest
     networks:
       - app_2
-#    command: redis-server --requirepass redis_password
   worker:
     build: .
-    command: celery -A scheduler worker -B -l info -Q default
+    image: app:latest
+    command: celery -A project.app.celery worker -l info -Q default
     env_file:
       - .env.prod
     volumes:
@@ -31,6 +31,16 @@ services:
       - redis
     depends_on:
       - redis
+    networks:
+      - app_2
+  beat:
+    build: .
+    image: app:latest
+    entrypoint: celery -A project.app.celery beat -l info
+    env_file:
+      - .env.prod
+    volumes:
+      - ./project:/home/project
     networks:
       - app_2
 

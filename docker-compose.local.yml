@@ -33,7 +33,6 @@ services:
     image: redis:latest
     networks:
       - custom_network
-#    command: redis-server --requirepass redis_password
   worker:
     build: .
     image: app:latest

@@ -39,6 +39,7 @@ CELERY_RESULT_BACKEND = os.environ.get(
     'CELERY_RESULT_BACKEND',
     'redis://redis:6379/1'
 )
+CELERY_TIMEZONE = 'Asia/Tbilisi'
 
 
 ALPHAVANTAGE_API_KEY = '7LWBNDGBH88CCQPG'

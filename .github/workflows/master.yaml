@@ -3,7 +3,7 @@ name: Master - Testing
 on:
   push:
     branches:
-      - 'feature/add-python-telegram-bot'
+      - 'feature/add-celery'
 
 jobs:
   redeploy:
