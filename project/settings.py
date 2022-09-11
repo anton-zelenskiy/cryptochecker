@@ -1,4 +1,8 @@
 import os
+import logging
+
+
+logging.getLogger('parso.python.diff').disabled = True
 
 
 API_TOKEN = os.getenv('API_TOKEN', '')
@@ -19,9 +23,25 @@ LOGGING_CONFIG = {
 }
 
 WEBHOOK_HOST = os.getenv('WEBHOOK_HOST', '')
-WEBHOOK_PORT = 443
+WEBHOOK_PORT = os.getenv('WEBHOOK_PORT', 443)
 
 
 REDIS_HOST = 'redis'
 REDIS_PORT = 6379
+REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', 'redis_password')
 CHATS_CACHE_KEY = 'chats'
+
+CELERY_BROKER_URL = os.environ.get(
+    'CELERY_BROKER_URL',
+    'redis://redis:6379/1'
+)
+CELERY_RESULT_BACKEND = os.environ.get(
+    'CELERY_RESULT_BACKEND',
+    'redis://redis:6379/1'
+)
+CELERY_TIMEZONE = 'Asia/Tbilisi'
+
+
+ALPHAVANTAGE_API_KEY = '7LWBNDGBH88CCQPG'
+
+VOLATILITY_THRESHOLD_PERCENT = 4

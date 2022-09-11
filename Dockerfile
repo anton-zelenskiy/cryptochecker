@@ -1,10 +1,10 @@
-FROM python:3.7
+FROM python:3.10.4
 
 RUN mkdir -p /home/project
 WORKDIR /home/project
-COPY requirements.txt /home/project
+COPY conf/requirements.txt /home/project
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENV PYTHONPATH /home/
+ENV PYTHONPATH /home
 
-COPY . /home/project
+COPY . .

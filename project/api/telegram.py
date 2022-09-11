@@ -1,7 +1,8 @@
-import requests
 from urllib.parse import urlencode
 
-from ..config import API_TOKEN
+import requests
+
+from project.settings import API_TOKEN
 
 
 class TelegramAPI:

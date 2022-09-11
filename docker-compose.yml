@@ -1,54 +1,50 @@
 version: '3'
 
 services:
-
   app:
-    container_name: app
-    restart: always
-    build: ./project
+    build: .
     ports:
-      - 8000:8000
+      - "5001:5001"
     depends_on:
       - redis
     networks:
-      - custom_network
-    command: gunicorn -w 1 -b :8000 app:app
-
+      - app_2
+      - nginx-bot_reverse_proxy
+    env_file:
+      - .env.prod
+    volumes:
+      - ./project:/home/project
+    command: gunicorn -w 1 --preload -b :5001 app:app
   redis:
-    image: redis:3.2.11
-    container_name: redis
+    image: redis:latest
     networks:
-      - custom_network
-    ports:
-      - 6379:6379
-    command: redis-server --requirepass redis_password
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - 80:80
-      - 443:443
+      - app_2
+  worker:
+    build: .
+    image: app:latest
+    command: celery -A project.app.celery worker -l info -Q default
+    env_file:
+      - .env.prod
     volumes:
-      - ./infra-nginx/data/nginx.conf:/etc/nginx/nginx.conf
-      - ./infra-nginx/data/conf:/etc/nginx/conf.d
-      - ./infra-nginx/data/certbot/conf:/etc/letsencrypt
-      - ./infra-nginx/data/certbot/www:/var/www/certbot
+      - ./project:/home/project
+    links:
+      - redis
     depends_on:
-      - app
+      - redis
     networks:
-      - custom_network
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
-
-  certbot:
-    image: certbot/certbot
-    restart: unless-stopped
+      - app_2
+  beat:
+    build: .
+    image: app:latest
+    entrypoint: celery -A project.app.celery beat -l info
+    env_file:
+      - .env.prod
     volumes:
-      - ./infra-nginx/data/certbot/conf:/etc/letsencrypt
-      - ./infra-nginx/data/certbot/www:/var/www/certbot
+      - ./project:/home/project
     networks:
-      - custom_network
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+      - app_2
 
 networks:
-  custom_network:
-    driver: bridge
+  app_2:
+  nginx-bot_reverse_proxy:
+    external: true
