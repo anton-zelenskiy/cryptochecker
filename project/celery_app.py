@@ -35,7 +35,7 @@ CELERY_CONFIG = {
         },
         'task_send_currency_prices': {
             'task': 'project.scheduler.tasks.task_send_currency_prices',
-            'schedule': crontab(minute=0)
+            'schedule': crontab(minute='*/1')
         },
         'task_check_candles': {
             'task': 'project.scheduler.tasks.task_check_candles',
