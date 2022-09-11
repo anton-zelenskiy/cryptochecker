@@ -28,8 +28,6 @@ def send_currency_prices():
     redis = get_redis()
     chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
 
-    print('>>> chats', chat_ids)
-
     if not chat_ids:
         return
 
@@ -54,7 +52,6 @@ def send_currency_prices():
             for item in user_currency_prices
         }
 
-        print('>> send message')
         tg_bot.send_message(
             chat_id=int(chat_id),
             text=get_currency_prices_display(prices_data),

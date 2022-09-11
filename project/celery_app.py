@@ -25,17 +25,17 @@ CELERY_CONFIG = {
         },
         'task_check_volatility_60': {
             'task': 'project.scheduler.tasks.task_check_volatility',
-            'schedule': crontab(hour='*/1'),
+            'schedule': crontab(hour='*/1', minute=1),
             'args': (60,)
         },
         'task_check_volatility_120': {
             'task': 'project.scheduler.tasks.task_check_volatility',
-            'schedule': crontab(hour='*/2'),
+            'schedule': crontab(hour='*/2', minute=1),
             'args': (120,)
         },
         'task_send_currency_prices': {
             'task': 'project.scheduler.tasks.task_send_currency_prices',
-            'schedule': crontab(minute='*/1')
+            'schedule': crontab(minute=0)
         },
         'task_check_candles': {
             'task': 'project.scheduler.tasks.task_check_candles',
