@@ -65,8 +65,6 @@ def check_volatility(minutes: int):
     """Notify subscribers about currency volatility."""
     from project.app import tg_bot
 
-    logger.info(f'TASK RUN {minutes}')
-
     redis = get_redis()
     chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
 
