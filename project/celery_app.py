@@ -42,7 +42,8 @@ CELERY_CONFIG = {
             'schedule': crontab(minute=5)
         },
     },
-    'task_default_queue': 'default'
+    'task_default_queue': 'default',
+    'task_ignore_result': True,
 }
 
 

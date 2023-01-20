@@ -8,7 +8,7 @@ services:
     depends_on:
       - redis
     networks:
-      - custom_network
+      - cryptochecker
     env_file:
       - .env.dev
     volumes:
@@ -27,16 +27,16 @@ services:
     depends_on:
       - app
     networks:
-      - custom_network
+      - cryptochecker
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
   redis:
     image: redis:latest
     networks:
-      - custom_network
+      - cryptochecker
   worker:
     build: .
     image: app:latest
-    command: celery -A project.app.celery worker -l info -Q default
+    command: celery -A project.app.celery worker -l info -Q default,kline_ws
     env_file:
       - .env.dev
     volumes:
@@ -46,12 +46,12 @@ services:
     depends_on:
       - redis
     networks:
-      - custom_network
+      - cryptochecker
   beat:
     build: .
     image: app:latest
     networks:
-      - custom_network
+      - cryptochecker
     entrypoint: celery -A project.app.celery beat -l info
     env_file:
       - .env.dev
@@ -59,4 +59,4 @@ services:
       - ./project:/home/project
 
 networks:
-  custom_network:
+  cryptochecker:

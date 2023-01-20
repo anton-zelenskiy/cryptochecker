@@ -14,7 +14,7 @@ WEBHOOK_URL_BASE = f'https://{settings.WEBHOOK_HOST}:{settings.WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{settings.API_TOKEN}/'
 
 tg_bot = telegram.Bot(settings.API_TOKEN)
-# tg_bot.set_webhook(url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}')
+
 dispatcher = init_dispatcher(bot=tg_bot)
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,15 @@ def get_me():
     res = tg_bot.get_me()
 
     return f'Get-Result: {res}'
+
+
+@app.route(f'{WEBHOOK_URL_PATH}set/', methods=['GET'])
+def set_webhook():
+    res = tg_bot.set_webhook(
+        url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}',
+        certificate=open('certificate.pem', 'rb')
+    )
+    return f'{str(res)}'
 
 
 @app.route(f'{WEBHOOK_URL_PATH}delete/', methods=['GET'])
