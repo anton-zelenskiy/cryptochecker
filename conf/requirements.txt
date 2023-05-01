@@ -16,7 +16,7 @@ click-repl==0.2.0
 decorator==5.1.1
 Deprecated==1.2.13
 executing==1.0.0
-Flask==2.1.1
+Flask==2.3.2
 flask-shell-ipython==0.4.1
 gunicorn==20.1.0
 idna==3.3
