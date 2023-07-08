@@ -1,4 +1,4 @@
-FROM python:3.10.4
+FROM python:3.10.4-alpine
 
 RUN mkdir -p /home/project
 WORKDIR /home/project
