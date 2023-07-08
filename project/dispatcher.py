@@ -235,7 +235,7 @@ def currency_price(update: Update, context: CallbackContext) -> None:
 
 
 def info(update: Update, context: CallbackContext) -> None:
-    user_currencies = get_user_currencies(chat_id)
+    user_currencies = get_user_currencies(update.message.chat.id)
     currency_codes = default_currency_codes | user_currencies
 
     currency_prices = get_currency_prices(currency_codes=currency_codes)
