@@ -19,6 +19,10 @@ from project.api.coingecko import (
 )
 from project.core.redis import get_redis
 from project.utils import get_currency_prices_display
+from scheduler.check_volatility import (
+    default_currency_codes,
+    get_user_currencies,
+)
 
 redis = get_redis()
 
@@ -38,6 +42,7 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
     queue = Queue()
     dp = Dispatcher(bot=bot, update_queue=queue)
     dp.add_handler(CommandHandler('start', start))
+    dp.add_handler(CommandHandler('info', info))
     dp.add_handler(CommandHandler('enable_notifications', enable_notifications))
     dp.add_handler(
         CommandHandler('disable_notifications', disable_notifications)
@@ -218,6 +223,23 @@ def currency_price(update: Update, context: CallbackContext) -> None:
         update.message.reply_text('unknown command')
 
     currency_prices = get_currency_prices(currency_codes=[currency_code])
+    prices_data = {
+        item.currency_code: item.price
+        for item in currency_prices
+    }
+
+    update.message.reply_text(
+        get_currency_prices_display(prices_data),
+        parse_mode='HTML'
+    )
+
+
+def info(update: Update, context: CallbackContext) -> None:
+    user_currencies = get_user_currencies(chat_id)
+    currency_codes = default_currency_codes | user_currencies
+
+    currency_prices = get_currency_prices(currency_codes=currency_codes)
+
     prices_data = {
         item.currency_code: item.price
         for item in currency_prices
