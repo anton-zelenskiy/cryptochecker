@@ -1,18 +1,12 @@
 import datetime
 from functools import lru_cache
+from pycoingecko import CoinGeckoAPI
 from typing import List, Iterable
 
-from pycoingecko import CoinGeckoAPI
-
+from project.api.constants import CURRENCY_CODE_ID_OVERRIDE_MAP
 from project.currencies.structures import HistoryData, CurrencyPrice, CandleData
 
 api = CoinGeckoAPI()
-
-
-CURRENCY_CODE_ID_OVERRIDE_MAP = {
-    'BTC': 'bitcoin',
-    'ETH': 'ethereum',
-}
 
 
 STEP_MINUTES = 5
