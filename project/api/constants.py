@@ -31,4 +31,5 @@ CURRENCY_CODE_ID_OVERRIDE_MAP = {
     'kava': 'kava',
     'waves': 'waves',
     'xrd': 'radix',
+    'inj': 'injective-protocol',
 }

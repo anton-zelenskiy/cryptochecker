@@ -169,7 +169,7 @@ def add_currency_command(update: Update, context: CallbackContext) -> str:
 
 
 def add_currency_value(update: Update, context: CallbackContext) -> None:
-    currency_code = str(update.message.text).upper()
+    currency_code = str(update.message.text).lower()
 
     if not is_currency_code_exists(currency_code):
         update.message.reply_text('invalid currency, try again:')
@@ -191,7 +191,7 @@ def del_currency_command(update: Update, context: CallbackContext) -> str:
 
 
 def del_currency_value(update: Update, context: CallbackContext) -> None:
-    currency_code = str(update.message.text).upper()
+    currency_code = str(update.message.text).lower()
 
     if not is_currency_code_exists(currency_code):
         update.message.reply_text('invalid currency, try again:')
@@ -217,7 +217,7 @@ def cancel(update: Update, context: CallbackContext) -> int:
 
 
 def currency_price(update: Update, context: CallbackContext) -> None:
-    currency_code = str(update.message.text).upper()
+    currency_code = str(update.message.text).lower()
 
     if not is_currency_code_exists(currency_code):
         update.message.reply_text('unknown command')

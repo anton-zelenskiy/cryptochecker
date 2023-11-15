@@ -18,7 +18,7 @@ def get_currency_code_id_map() -> dict:
 
     result = {}
     for coin in coins:
-        currency_code = str(coin['symbol']).upper()
+        currency_code = str(coin['symbol']).lower()
         currency_id = (
             CURRENCY_CODE_ID_OVERRIDE_MAP.get(currency_code) or coin['id']
         )
