@@ -18,7 +18,7 @@ CURRENCY_CODE_ID_OVERRIDE_MAP = {
     'xmr': 'monero',
     'atom': 'cosmos',
     'icp': 'internet-computer',
-    'apt': 'apidae',
+    'apt': 'aptos',
     'near': 'near',
     'rune': 'thorchain',
     'arb': 'arbitrum',
