@@ -16,7 +16,7 @@ from project.currencies.volatility import (
 )
 from project.utils import get_currency_prices_display
 
-default_currency_codes = {'BTC', 'ETH'}
+default_currency_codes = {'btc', 'eth'}
 
 logger = logging.getLogger(__name__)
 
@@ -121,9 +121,11 @@ def get_all_user_currencies(chat_ids: Iterable[str]):
 def get_user_currencies(chat_id: str):
     redis = get_redis()
 
-    return redis.smembers(
+    currencies = redis.smembers(
         f'volatility:user:{chat_id}:currencies'
     ) or set()
+
+    return {i.lower() for i in currencies}
 
 
 def get_volatility_threshold(chat_id):

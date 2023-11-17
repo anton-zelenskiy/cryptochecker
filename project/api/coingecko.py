@@ -58,7 +58,7 @@ def get_currency_prices(currency_codes: Iterable[str]):
     currency_code_id_map = get_currency_code_id_map()
     currency_ids = [
         currency_code_id_map.get(code)
-        for code in currency_codes
+        for code.lower() in currency_codes
     ]
 
     currency_prices = api.get_price(
