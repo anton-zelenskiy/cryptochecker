@@ -7,18 +7,18 @@ from project.api.coingecko import (
     get_currency_code_id_map,
     get_currency_prices,
     get_ohlc,
+    get_daily_currency_history,
+    STEP_MINUTES
 )
 from project.core.redis import get_redis
-from project.currencies.structures import Ratio
-from project.currencies.volatility import (
-    get_volatility_data,
-    calculate_volatility,
-)
+from project.currencies.structures import ICON_ALERT, Ratio, VolatilityValue
+
 from project.utils import get_currency_prices_display
 
-default_currency_codes = {'btc', 'eth'}
-
 logger = logging.getLogger(__name__)
+
+BORDER_PERCENTAGE = 2
+default_currency_codes = {'btc', 'eth'}
 
 
 def send_currency_prices():
@@ -96,10 +96,13 @@ def check_volatility(minutes: int):
 
             if volatility.volatility > volatility_threshold:
                 ratio = Ratio.get_ratio_display(volatility.ratio)
+
+                lower_price = volatility.calculate_lower_value(volatility.x2, BORDER_PERCENTAGE)
+                upper_price = volatility.calculate_upper_value(volatility.x2, BORDER_PERCENTAGE)
+
                 message = (
-                    f'Price alert for {currency}. Period (min): {minutes}, '
-                    f'volatility: {volatility.volatility} % ({ratio}), '
-                    f'latest price: {volatility.x2}, '
+                    f'{ICON_ALERT} {currency}: {minutes} min., {volatility.volatility}% ({ratio}), '
+                    f'price: {volatility.x2} ({lower_price} - {upper_price}). '
                     f'old price: {volatility.x1}'
                 )
                 tg_bot.send_message(
@@ -144,7 +147,7 @@ def get_volatility_threshold(chat_id):
 def get_volatility_data_for_currencies(
     currency_codes: Set[str],
     minutes: int
-):
+) -> dict[str, VolatilityValue]:
     result = {}
 
     currency_code_map = get_currency_code_id_map()
@@ -164,19 +167,26 @@ def get_volatility_data_for_currencies(
     return result
 
 
-def get_candles_data_for_currencies(
-    currency_codes: Set[str]
-):
-    result = {}
+def get_volatility_data(currency_id: str, minutes: int) -> VolatilityValue:
+    prices_data = get_daily_currency_history(
+        currency_id=currency_id,
+    )
 
-    for currency_code in currency_codes:
-        result.update({
-            currency_code: get_ohlc(
-                currency_code=currency_code,
-            )
-        })
+    sorted_prices_data = sorted(
+        prices_data,
+        key=lambda x: x.unix_timestamp,
+        reverse=True
+    )
+    latest_value = sorted_prices_data[0].value
 
-    return result
+    index = minutes // STEP_MINUTES
+
+    try:
+        minutes_ago = sorted_prices_data[index].value
+    except KeyError:
+        raise Exception('error getting historical price')
+
+    return VolatilityValue.calculate(minutes_ago, latest_value)
 
 
 def check_candles(candles_count=None, threshold=None):
@@ -223,7 +233,7 @@ def check_candles(candles_count=None, threshold=None):
                 for x, y in itertools.pairwise(closes)
             )
 
-            volatility = calculate_volatility(closes[0], closes[-1])
+            volatility = VolatilityValue.calculate(closes[0], closes[-1])
             ratio = Ratio.get_ratio_display(volatility.ratio)
 
             if volatility.volatility < threshold:
@@ -241,3 +251,18 @@ def check_candles(candles_count=None, threshold=None):
                 text=message,
                 parse_mode='HTML',
             )
+
+
+def get_candles_data_for_currencies(
+    currency_codes: Set[str]
+):
+    result = {}
+
+    for currency_code in currency_codes:
+        result.update({
+            currency_code: get_ohlc(
+                currency_code=currency_code,
+            )
+        })
+
+    return result

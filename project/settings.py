@@ -5,7 +5,7 @@ import logging
 logging.getLogger('parso.python.diff').disabled = True
 
 
-API_TOKEN = os.getenv('API_TOKEN', '')
+TELEGRAM_API_TOKEN = os.getenv('TELEGRAM_API_TOKEN', '')
 
 LOGGING_CONFIG = {
     'version': 1,
@@ -39,7 +39,7 @@ CELERY_RESULT_BACKEND = os.environ.get(
     'CELERY_RESULT_BACKEND',
     'redis://redis:6379/1'
 )
-CELERY_TIMEZONE = 'Asia/Tbilisi'
+CELERY_TIMEZONE = 'Asia/Tomsk'
 
 
 ALPHAVANTAGE_API_KEY = '7LWBNDGBH88CCQPG'

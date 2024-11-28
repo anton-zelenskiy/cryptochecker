@@ -20,8 +20,29 @@ class Ratio(Enum):
 class VolatilityValue:
     ratio: Ratio
     volatility: float  # percentage
-    x1: float
-    x2: float
+    x1: float  # old price
+    x2: float  # latest price
+
+    @classmethod
+    def calculate(cls, x1: float, x2: float) -> 'VolatilityValue':
+        volatility = (x2 - x1) / x1 * 100 if x1 != x2 else 0.0
+
+        ratio =  Ratio.BALANCE
+        if volatility:
+            ratio = Ratio.UPSIDE if volatility > 0 else Ratio.DOWNSIDE
+
+        return VolatilityValue(
+            ratio=ratio,
+            volatility=round(abs(volatility), 2),
+            x1=x1,
+            x2=x2,
+        )
+
+    def calculate_lower_value(self, x: float, percent_change: float) -> float:
+        return x * (1 - percent_change / 100)
+
+    def calculate_upper_value(self, x: float, percent_change: float) -> float:
+        return x * (1 + percent_change / 100)
 
 
 @dataclass(frozen=True)
@@ -43,3 +64,6 @@ class CandleData:
     high: int
     low: int
     close: int
+
+
+ICON_ALERT = '\U0000203C'

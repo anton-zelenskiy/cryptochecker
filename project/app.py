@@ -11,9 +11,9 @@ from project.dispatcher import init_dispatcher
 dictConfig(settings.LOGGING_CONFIG)
 
 WEBHOOK_URL_BASE = f'https://{settings.WEBHOOK_HOST}:{settings.WEBHOOK_PORT}'
-WEBHOOK_URL_PATH = f'/{settings.API_TOKEN}/'
+WEBHOOK_URL_PATH = f'/{settings.TELEGRAM_API_TOKEN}/'
 
-tg_bot = telegram.Bot(settings.API_TOKEN)
+tg_bot = telegram.Bot(settings.TELEGRAM_API_TOKEN)
 
 dispatcher = init_dispatcher(bot=tg_bot)
 

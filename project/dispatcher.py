@@ -2,27 +2,27 @@ import enum
 from logging import getLogger
 from queue import Queue
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Bot
-from telegram.ext import (
-    Dispatcher,
-    CommandHandler,
-    MessageHandler,
-    Filters,
-    ConversationHandler,
-    CallbackContext,
-)
-
-from project import settings
-from project.api.coingecko import (
-    is_currency_code_exists,
-    get_currency_prices,
-)
-from project.core.redis import get_redis
-from project.utils import get_currency_prices_display
 from scheduler.check_volatility import (
     default_currency_codes,
     get_user_currencies,
 )
+from telegram import Bot, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram.ext import (
+    CallbackContext,
+    CommandHandler,
+    ConversationHandler,
+    Dispatcher,
+    Filters,
+    MessageHandler,
+)
+
+from project import settings
+from project.api.coingecko import (
+    get_currency_prices,
+    is_currency_code_exists,
+)
+from project.core.redis import get_redis
+from project.utils import get_currency_prices_display
 
 redis = get_redis()
 
@@ -32,6 +32,7 @@ logger = getLogger(__name__)
 def init_dispatcher(bot: Bot) -> Dispatcher:
     """
     start - Start bot
+    info - Get price of the list of cryptocurrencies
     enable_notifications - Enable notifications
     disable_notifications - Disable notifications
     set_volatility - Set volatility threshold (%)

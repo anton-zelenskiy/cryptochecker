@@ -6,7 +6,6 @@ from typing import Dict, Optional
 import requests
 
 from project.currencies.structures import VolatilityValue
-from project.currencies.volatility import calculate_volatility
 from project.settings import ALPHAVANTAGE_API_KEY
 
 
@@ -82,10 +81,10 @@ class AlphadvantageAPI:
             raise Exception('history data is empty')
 
         return {
-            5: calculate_volatility(five_min_ago, latest_value),
-            15: calculate_volatility(fifteen_min_ago, latest_value),
-            30: calculate_volatility(thirty_min_ago, latest_value),
-            60: calculate_volatility(hour_ago, latest_value),
+            5: VolatilityValue.calculate(five_min_ago, latest_value),
+            15: VolatilityValue.calculate(fifteen_min_ago, latest_value),
+            30: VolatilityValue.calculate(thirty_min_ago, latest_value),
+            60: VolatilityValue.calculate(hour_ago, latest_value),
         }
 
     def _make_request(self, method: str, url: str, params: dict):
