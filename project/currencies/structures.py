@@ -33,16 +33,18 @@ class VolatilityValue:
 
         return VolatilityValue(
             ratio=ratio,
-            volatility=round(abs(volatility), 2),
-            x1=x1,
-            x2=x2,
+            volatility=round(abs(volatility), 1),
+            x1=round(x1, 3),
+            x2=round(x2, 3),
         )
 
     def calculate_lower_value(self, x: float, percent_change: float) -> float:
-        return x * (1 - percent_change / 100)
+        value = x * (1 - percent_change / 100)
+        return round(value, 3)
 
     def calculate_upper_value(self, x: float, percent_change: float) -> float:
-        return x * (1 + percent_change / 100)
+        value = x * (1 + percent_change / 100)
+        return round(value, 3)
 
 
 @dataclass(frozen=True)
