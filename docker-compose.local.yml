@@ -8,7 +8,7 @@ services:
     networks:
       - cryptochecker
     env_file:
-      - .env.dev
+      - .env
     volumes:
       - ./project:/home/project
     command: gunicorn -w 1 --preload -b :5001 app:app
@@ -36,7 +36,7 @@ services:
     image: app:latest
     command: celery -A project.app.celery worker -l info -Q default,kline_ws
     env_file:
-      - .env.dev
+      - .env
     volumes:
       - ./project:/home/project
     links:
@@ -52,7 +52,7 @@ services:
       - cryptochecker
     entrypoint: celery -A project.app.celery beat -l info
     env_file:
-      - .env.dev
+      - .env
     volumes:
       - ./project:/home/project
 

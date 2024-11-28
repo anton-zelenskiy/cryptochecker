@@ -6,23 +6,23 @@ services:
     depends_on:
       - redis
     networks:
-      - app_2
+      - cryptochecker
       - nginx-bot_reverse_proxy
     env_file:
-      - .env.prod
+      - .env
     volumes:
       - ./project:/home/project
     command: gunicorn -w 1 --preload -b :5001 app:app
   redis:
     image: redis:latest
     networks:
-      - app_2
+      - cryptochecker
   worker:
     build: .
     image: app:latest
     command: celery -A project.app.celery worker -l info -Q default
     env_file:
-      - .env.prod
+      - .env
     volumes:
       - ./project:/home/project
     links:
@@ -30,19 +30,19 @@ services:
     depends_on:
       - redis
     networks:
-      - app_2
+      - cryptochecker
   beat:
     build: .
     image: app:latest
     entrypoint: celery -A project.app.celery beat -l info
     env_file:
-      - .env.prod
+      - .env
     volumes:
       - ./project:/home/project
     networks:
-      - app_2
+      - cryptochecker
 
 networks:
-  app_2:
+  cryptochecker:
   nginx-bot_reverse_proxy:
     external: true
