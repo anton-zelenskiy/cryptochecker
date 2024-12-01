@@ -43,6 +43,7 @@ class SettingState(enum.IntEnum):
     CHOOSE_SETTING = 1
     HANDLE_SET_APP_MODE = 2
     HANDLE_SET_VOLATILITY_THRESHOLD = 3
+    HANDLE_TOGGLE_NOTIFICATIONS = 4
 
 
 class SettingEnum(enum.Enum):
@@ -98,7 +99,10 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
             ],
             SettingState.HANDLE_SET_VOLATILITY_THRESHOLD: [
                 MessageHandler(Filters.text, handle_set_volatility_threshold_value)
-            ]
+            ],
+            SettingState.HANDLE_TOGGLE_NOTIFICATIONS: [
+                CommandHandler('settings', handle_settings)
+            ],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
@@ -275,7 +279,7 @@ def handle_toggle_notifications(update: Update, context: CallbackContext) -> int
         'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
     )
 
-    return ConversationHandler.END
+    return SettingState.HANDLE_TOGGLE_NOTIFICATIONS
 
 
 def list_currencies(update: Update, context: CallbackContext) -> int:
