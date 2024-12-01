@@ -100,9 +100,6 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
             SettingState.HANDLE_SET_VOLATILITY_THRESHOLD: [
                 MessageHandler(Filters.text, handle_set_volatility_threshold_value)
             ],
-            SettingState.HANDLE_TOGGLE_NOTIFICATIONS: [
-                CommandHandler('settings', handle_settings)
-            ],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
@@ -271,15 +268,15 @@ def handle_toggle_notifications(update: Update, context: CallbackContext) -> int
     query = update.callback_query
     query.answer()
 
-    chat_id = update.message.chat.id
-
-    is_enabled = setting_storage.toggle_notifications(chat_id)
+    # chat_id = update.message.chat.id
+#
+    # is_enabled = setting_storage.toggle_notifications(chat_id)
 
     query.edit_message_text(
-        'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
+        'Notifications have been enabled' # if is_enabled else 'Notifications have been disabled'
     )
 
-    return SettingState.HANDLE_TOGGLE_NOTIFICATIONS
+    return ConversationHandler.END
 
 
 def list_currencies(update: Update, context: CallbackContext) -> int:
