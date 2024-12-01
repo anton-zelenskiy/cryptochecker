@@ -72,7 +72,7 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
     settings_handler = ConversationHandler(
         entry_points=[CommandHandler('settings', handle_settings)],
         states={
-            SettingState.CHOOSE_SETTING: [
+            SettingState.CHOOSE_SETTING.value: [
                 CallbackQueryHandler(
                     handle_set_app_mode_command,
                     pattern=SettingEnum.CMD_SET_APP_MODE.value
@@ -86,7 +86,7 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
                     pattern=SettingEnum.CMD_TOGGLE_NOTIFICATIONS.value
                 ),
             ],
-            SettingState.HANDLE_SET_APP_MODE: [
+            SettingState.HANDLE_SET_APP_MODE.value: [
                 CallbackQueryHandler(
                     handle_check_selected_coins,
                     pattern=SettingEnum.CMD_CHECK_SELECTED_COINS.value
@@ -96,13 +96,42 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
                     pattern=SettingEnum.CMD_CHECK_ALL_COINS.value
                 ),
             ],
-            SettingState.HANDLE_SET_VOLATILITY_THRESHOLD: [
+            SettingState.HANDLE_SET_VOLATILITY_THRESHOLD.value: [
                 MessageHandler(Filters.text, handle_set_volatility_threshold_value)
             ]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
     dp.add_handler(settings_handler)
+
+    # set_app_mode_conversation = ConversationHandler(
+    #     entry_points=[
+    #         CallbackQueryHandler(
+    #             handle_check_selected_coins,
+    #             pattern=SettingEnum.CMD_CHECK_SELECTED_COINS.value
+    #         ),
+    #         CallbackQueryHandler(
+    #             handle_check_all_coins,
+    #             pattern=SettingEnum.CMD_CHECK_ALL_COINS.value
+    #         ),
+    #     ],
+    #     states={
+    #         SettingState.HANDLE_SET_APP_MODE: [
+    #             CallbackQueryHandler(
+    #                 handle_check_selected_coins,
+    #                 pattern=SettingEnum.CMD_CHECK_SELECTED_COINS.value
+    #             ),
+    #             CallbackQueryHandler(
+    #                 handle_check_all_coins,
+    #                 pattern=SettingEnum.CMD_CHECK_ALL_COINS.value
+    #             ),
+    #         ],
+    #         SettingState.HANDLE_SET_VOLATILITY_THRESHOLD: [
+    #             MessageHandler(Filters.text, handle_set_volatility_threshold_value)
+    #         ]
+    #     },
+    #     fallbacks=[CommandHandler('cancel', cancel)],
+    # )
 
     dp.add_handler(CommandHandler('list_currencies', list_currencies))
     add_currency_handler = ConversationHandler(
@@ -204,7 +233,7 @@ def handle_set_app_mode_command(
         reply_markup=InlineKeyboardMarkup(buttons),
     )
 
-    return SettingState.HANDLE_SET_APP_MODE
+    return SettingState.HANDLE_SET_APP_MODE.value
 
 
 def handle_check_selected_coins(
@@ -245,7 +274,7 @@ def handle_set_volatility_threshold_command(update: Update, context: CallbackCon
 
     update.message.reply_text('Please set volatility threshold:')
 
-    return SettingState.HANDLE_SET_VOLATILITY_THRESHOLD
+    return SettingState.HANDLE_SET_VOLATILITY_THRESHOLD.value
 
 
 def handle_set_volatility_threshold_value(update: Update, context: CallbackContext) -> int:
@@ -254,7 +283,7 @@ def handle_set_volatility_threshold_value(update: Update, context: CallbackConte
     except ValueError as e:
         logger.error(e)
         update.message.reply_text('invalid value, try again:')
-        return SettingState.HANDLE_SET_VOLATILITY_THRESHOLD
+        return SettingState.HANDLE_SET_VOLATILITY_THRESHOLD.value
 
     redis.set(f'volatility:user:{update.message.chat.id}:threshold', value)
 
@@ -263,17 +292,20 @@ def handle_set_volatility_threshold_value(update: Update, context: CallbackConte
     return ConversationHandler.END
 
 
-def handle_toggle_notifications(update: Update, context: CallbackContext) -> None:
+def handle_toggle_notifications(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     query.answer()
 
     chat_id = update.message.chat.id
 
-    is_enabled = setting_storage.toggle_notifications(chat_id)
+    # is_enabled = setting_storage.toggle_notifications(chat_id)
+    is_enabled = False
 
     update.message.reply_text(
         'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
     )
+
+    return ConversationHandler.END
 
 
 def list_currencies(update: Update, context: CallbackContext) -> int:
