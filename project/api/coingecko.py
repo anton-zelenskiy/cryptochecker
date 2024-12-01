@@ -4,12 +4,9 @@ from pycoingecko import CoinGeckoAPI
 from typing import List, Iterable
 
 from project.api.constants import CURRENCY_CODE_ID_OVERRIDE_MAP
-from project.currencies.structures import HistoryData, CurrencyPrice, CandleData
+from project.currencies.structures import HistoryData, Coin, CandleData
 
 api = CoinGeckoAPI()
-
-
-STEP_MINUTES = 5
 
 
 @lru_cache(maxsize=1024)
@@ -35,6 +32,15 @@ def get_currency_id_code_map():
     }
 
 
+class InvalidInput(Exception):
+    ...
+
+
+def validate_user_input(value: str) -> None:
+    if len(value.split()) > 1:
+        raise InvalidInput()
+
+
 def is_currency_code_exists(currency_code: str) -> bool:
     return currency_code in get_currency_code_id_map()
 
@@ -49,12 +55,12 @@ def get_daily_currency_history(currency_id: str) -> List[HistoryData]:
     prices_data = data.get('prices', [])
 
     return [
-        HistoryData(unix_timestamp=ts, value=round(price, 5))
+        HistoryData(unix_timestamp=ts, value=round(price, 3))
         for ts, price in prices_data
     ]
 
 
-def get_currency_prices(currency_codes: Iterable[str]):
+def get_currency_prices(currency_codes: Iterable[str]) -> list[Coin]:
     currency_code_id_map = get_currency_code_id_map()
     currency_ids = [
         currency_code_id_map.get(code)
@@ -69,9 +75,9 @@ def get_currency_prices(currency_codes: Iterable[str]):
     currency_id_code_map = get_currency_id_code_map()
 
     return [
-        CurrencyPrice(
+        Coin(
             currency_code=currency_id_code_map.get(currency_id),
-            price=round(price['usd'], 5),
+            price=round(price['usd'], 3),
         )
         for currency_id, price in currency_prices.items()
     ]

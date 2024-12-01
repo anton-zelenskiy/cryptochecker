@@ -1,6 +1,13 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, IntEnum
 import datetime
+
+from project import constants
+
+
+class AppMode(IntEnum):
+    CHECK_SELECTED_COINS = 1
+    CHECK_ALL_COINS = 2
 
 
 class Ratio(Enum):
@@ -11,9 +18,38 @@ class Ratio(Enum):
     @classmethod
     def get_ratio_display(cls, ratio: 'Ratio'):
         if ratio == cls.DOWNSIDE:
-            return '\u2B07'  # arrow down
+            return constants.ICON_ARROW_DOWN
 
-        return '\u2B06'  # up arrow
+        return constants.ICON_ARROW_UP
+
+
+@dataclass(frozen=True)
+class Coin:
+    currency_code: str
+    price: float
+
+    @property
+    def price_display(self) -> float:
+        return round(self.price, 3)
+
+    def lower_border(self, percent_change: float) -> float:
+        value = self.price * (1 - percent_change / 100)
+        return round(value, 3)
+
+    def upper_border(self, percent_change: float) -> float:
+        value = self.price * (1 + percent_change / 100)
+        return round(value, 3)
+
+    @classmethod
+    def display(cls, coins: list['Coin'], percentage: int) -> str:
+        rows = []
+        for coin in coins:
+            rows.append(
+                f"<i>{coin.currency_code.upper()}</i>: <b>{coin.price_display}$</b> "
+                f"(+-{percentage}%: {coin.lower_border(percentage)} - {coin.upper_border(percentage)})"
+            )
+
+        return '\n'.join(rows)
 
 
 @dataclass(frozen=True)
@@ -38,13 +74,20 @@ class VolatilityValue:
             x2=round(x2, 3),
         )
 
-    def calculate_lower_value(self, x: float, percent_change: float) -> float:
-        value = x * (1 - percent_change / 100)
+    def lower_border(self, percent_change: float) -> float:
+        value = self.x2 * (1 - percent_change / 100)
         return round(value, 3)
 
-    def calculate_upper_value(self, x: float, percent_change: float) -> float:
-        value = x * (1 + percent_change / 100)
+    def upper_border(self, percent_change: float) -> float:
+        value = self.x2 * (1 + percent_change / 100)
         return round(value, 3)
+
+    def display(self, currency: str, minutes_window: int, percentage: int) -> str:
+        return (
+            f"{constants.ICON_ALERT} {currency}: {minutes_window} min., {self.volatility}% ({Ratio.get_ratio_display(self.ratio)}), "
+            f"price: {self.x2} (+- {percentage}% {self.lower_border(percentage)} - {self.upper_border(percentage)}). "
+            f"old price: {self.x1}"
+        )
 
 
 @dataclass(frozen=True)
@@ -54,18 +97,9 @@ class HistoryData:
 
 
 @dataclass(frozen=True)
-class CurrencyPrice:
-    currency_code: str
-    price: float
-
-
-@dataclass(frozen=True)
 class CandleData:
     datetime: datetime.datetime
     open: int
     high: int
     low: int
     close: int
-
-
-ICON_ALERT = '\U0000203C'

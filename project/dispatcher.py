@@ -4,11 +4,12 @@ from queue import Queue
 
 from scheduler.check_volatility import (
     default_currency_codes,
-    get_user_currencies,
 )
-from telegram import Bot, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from project.core.redis import get_user_currencies
+from telegram import Bot, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (
     CallbackContext,
+    CallbackQueryHandler,
     CommandHandler,
     ConversationHandler,
     Dispatcher,
@@ -17,25 +18,48 @@ from telegram.ext import (
 )
 
 from project import settings
+from project import constants
+from project.currencies.structures import Coin
 from project.api.coingecko import (
     get_currency_prices,
     is_currency_code_exists,
 )
-from project.core.redis import get_redis
-from project.utils import get_currency_prices_display
+from project.core.redis import get_redis, SettingStorage
+from project.currencies.structures import AppMode
 
 redis = get_redis()
 
+setting_storage = SettingStorage()
+
 logger = getLogger(__name__)
+
+
+class CurrencyState(enum.IntEnum):
+    ADD_CURRENCY = 1
+    DEL_CURRENCY = 2
+
+
+class SettingState(enum.IntEnum):
+    CHOOSE_SETTING = 1
+    HANDLE_SET_APP_MODE = 2
+    HANDLE_SET_VOLATILITY_THRESHOLD = 3
+
+
+class SettingEnum(enum.Enum):
+    CMD_SET_APP_MODE = 'CMD_SET_APP_MODE'
+    CMD_CHECK_SELECTED_COINS = 'CMD_CHECK_SELECTED_COINS'
+    CMD_CHECK_ALL_COINS = 'CMD_CHECK_ALL_COINS'
+
+    CMD_SET_VOLATILITY_THRESHOLD = 'CMD_SET_VOLATILITY_THRESHOLD'
+
+    CMD_TOGGLE_NOTIFICATIONS = 'CMD_TOGGLE_NOTIFICATIONS'
 
 
 def init_dispatcher(bot: Bot) -> Dispatcher:
     """
     start - Start bot
     info - Get price of the list of cryptocurrencies
-    enable_notifications - Enable notifications
-    disable_notifications - Disable notifications
-    set_volatility - Set volatility threshold (%)
+    settings - Set app settings
     list_currencies - List of currencies used by volatility checker
     add_currency - Add currency to volatility checker
     del_currency - Delete currency from volatility checker
@@ -44,21 +68,41 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
     dp = Dispatcher(bot=bot, update_queue=queue)
     dp.add_handler(CommandHandler('start', start))
     dp.add_handler(CommandHandler('info', info))
-    dp.add_handler(CommandHandler('enable_notifications', enable_notifications))
-    dp.add_handler(
-        CommandHandler('disable_notifications', disable_notifications)
-    )
 
-    volatility_handler = ConversationHandler(
-        entry_points=[CommandHandler('set_volatility', set_volatility_command)],
+    settings_handler = ConversationHandler(
+        entry_points=[CommandHandler('settings', handle_settings)],
         states={
-            VolatilityState.SET_VOLATILITY.value: [
-                MessageHandler(Filters.text, set_volatility_value)
+            SettingState.CHOOSE_SETTING: [
+                CallbackQueryHandler(
+                    handle_set_app_mode_command,
+                    pattern=SettingEnum.CMD_SET_APP_MODE.value
+                ),
+                CallbackQueryHandler(
+                    handle_set_volatility_threshold_command,
+                    pattern=SettingEnum.CMD_SET_VOLATILITY_THRESHOLD.value
+                ),
+                CallbackQueryHandler(
+                    handle_toggle_notifications,
+                    pattern=SettingEnum.CMD_TOGGLE_NOTIFICATIONS.value
+                ),
             ],
+            SettingState.HANDLE_SET_APP_MODE: [
+                CallbackQueryHandler(
+                    handle_check_selected_coins,
+                    pattern=SettingEnum.CMD_CHECK_SELECTED_COINS.value
+                ),
+                CallbackQueryHandler(
+                    handle_check_all_coins,
+                    pattern=SettingEnum.CMD_CHECK_ALL_COINS.value
+                ),
+            ],
+            SettingState.HANDLE_SET_VOLATILITY_THRESHOLD: [
+                MessageHandler(Filters.text, handle_set_volatility_threshold_value)
+            ]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
-    dp.add_handler(volatility_handler)
+    dp.add_handler(settings_handler)
 
     dp.add_handler(CommandHandler('list_currencies', list_currencies))
     add_currency_handler = ConversationHandler(
@@ -95,54 +139,144 @@ def start(update: Update, context: CallbackContext):
     ]
 
     update.message.reply_text(
-        'Hi! You can check currency price:',
-        reply_markup=ReplyKeyboardMarkup(
-            reply_keyboard,
-            one_time_keyboard=True,
-        ),
+        'Hi! Type currency code to get price',
+        # reply_markup=ReplyKeyboardMarkup(
+        #     reply_keyboard,
+        #     one_time_keyboard=True,
+        # ),
     )
 
 
-def enable_notifications(update: Update, context: CallbackContext) -> None:
-    redis.sadd(settings.CHATS_CACHE_KEY, update.message.chat.id)
-    update.message.reply_text('Notifications are successfully enabled')
+def handle_settings(update: Update, context: CallbackContext) -> int:
+    buttons = [
+        [
+            InlineKeyboardButton(
+                text='set app mode',
+                callback_data=SettingEnum.CMD_SET_APP_MODE.value,
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text='set volatility threshold',
+                callback_data=SettingEnum.CMD_SET_VOLATILITY_THRESHOLD.value,
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text='toggle notifications',
+                callback_data=SettingEnum.CMD_TOGGLE_NOTIFICATIONS.value,
+            )
+        ],
+    ]
+
+    update.message.reply_text(
+        text='Edit settings:',
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+    return SettingState.CHOOSE_SETTING.value
 
 
-def disable_notifications(update: Update, context: CallbackContext) -> None:
-    redis.srem(settings.CHATS_CACHE_KEY, update.message.chat.id)
-    update.message.reply_text('Notifications are successfully disabled')
+def handle_set_app_mode_command(
+    update: Update,
+    context: CallbackContext
+) -> int:
+    query = update.callback_query
+    query.answer()
+
+    buttons = [
+        [
+            InlineKeyboardButton(
+                text='check selected coins',
+                callback_data=SettingEnum.CMD_CHECK_SELECTED_COINS.value,
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text='check all coins',
+                callback_data=SettingEnum.CMD_CHECK_ALL_COINS.value,
+            )
+        ],
+    ]
+
+    query.edit_message_text(
+        text='Please set app mode:',
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+    return SettingState.HANDLE_SET_APP_MODE
 
 
-class VolatilityState(enum.Enum):
-    SET_VOLATILITY = 'SET'
+def handle_check_selected_coins(
+    update: Update,
+    context: CallbackContext
+) -> int:
+    query = update.callback_query
+    query.answer()
+
+    chat_id = update.message.chat.id
+
+    setting_storage.set_app_mode(chat_id=chat_id, value=AppMode.CHECK_SELECTED_COINS)
+
+    update.message.reply_text(text=f'Success! current app mode: {AppMode.CHECK_SELECTED_COINS.name}')
+
+    return ConversationHandler.END
 
 
-class CurrencyState(enum.Enum):
-    ADD_CURRENCY = 'ADD_CURRENCY'
-    DEL_CURRENCY = 'DEL_CURRENCY'
+def handle_check_all_coins(
+    update: Update,
+    context: CallbackContext
+) -> int:
+    query = update.callback_query
+    query.answer()
+
+    chat_id = update.message.chat.id
+
+    setting_storage.set_app_mode(chat_id=chat_id, value=AppMode.CHECK_ALL_COINS)
+
+    update.message.reply_text(text=f'Success! current app mode: {AppMode.CHECK_ALL_COINS.name}')
+
+    return ConversationHandler.END
 
 
-def set_volatility_command(update: Update, context: CallbackContext) -> str:
+def handle_set_volatility_threshold_command(update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    query.answer()
+
     update.message.reply_text('Please set volatility threshold:')
 
-    return VolatilityState.SET_VOLATILITY.value
+    return SettingState.HANDLE_SET_VOLATILITY_THRESHOLD
 
 
-def set_volatility_value(update: Update, context: CallbackContext) -> None:
+def handle_set_volatility_threshold_value(update: Update, context: CallbackContext) -> int:
     try:
         value = float(update.message.text)
     except ValueError as e:
         logger.error(e)
         update.message.reply_text('invalid value, try again:')
-        return VolatilityState.SET_VOLATILITY.value
+        return SettingState.HANDLE_SET_VOLATILITY_THRESHOLD
 
     redis.set(f'volatility:user:{update.message.chat.id}:threshold', value)
+
     update.message.reply_text('Volatility threshold updated successfully')
 
     return ConversationHandler.END
 
 
-def list_currencies(update: Update, context: CallbackContext) -> None:
+def handle_toggle_notifications(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    query.answer()
+
+    chat_id = update.message.chat.id
+
+    is_enabled = setting_storage.toggle_notifications(chat_id)
+
+    update.message.reply_text(
+        'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
+    )
+
+
+def list_currencies(update: Update, context: CallbackContext) -> int:
     def get_display_data(data):
         """Wraps info in html tags."""
         rows = []
@@ -163,18 +297,18 @@ def list_currencies(update: Update, context: CallbackContext) -> None:
     return ConversationHandler.END
 
 
-def add_currency_command(update: Update, context: CallbackContext) -> str:
+def add_currency_command(update: Update, context: CallbackContext) -> int:
     update.message.reply_text('Please type currency code:')
 
-    return CurrencyState.ADD_CURRENCY.value
+    return CurrencyState.ADD_CURRENCY
 
 
-def add_currency_value(update: Update, context: CallbackContext) -> None:
+def add_currency_value(update: Update, context: CallbackContext) -> int:
     currency_code = str(update.message.text).lower()
 
     if not is_currency_code_exists(currency_code):
         update.message.reply_text('invalid currency, try again:')
-        return CurrencyState.ADD_CURRENCY.value
+        return CurrencyState.ADD_CURRENCY
 
     redis.sadd(
         f'volatility:user:{update.message.chat.id}:currencies',
@@ -185,13 +319,13 @@ def add_currency_value(update: Update, context: CallbackContext) -> None:
     return ConversationHandler.END
 
 
-def del_currency_command(update: Update, context: CallbackContext) -> str:
+def del_currency_command(update: Update, context: CallbackContext) -> int:
     update.message.reply_text('Please type currency code to delete:')
 
-    return CurrencyState.DEL_CURRENCY.value
+    return CurrencyState.DEL_CURRENCY
 
 
-def del_currency_value(update: Update, context: CallbackContext) -> None:
+def del_currency_value(update: Update, context: CallbackContext) -> int:
     currency_code = str(update.message.text).lower()
 
     if not is_currency_code_exists(currency_code):
@@ -223,14 +357,10 @@ def currency_price(update: Update, context: CallbackContext) -> None:
     if not is_currency_code_exists(currency_code):
         update.message.reply_text('unknown command')
 
-    currency_prices = get_currency_prices(currency_codes=[currency_code])
-    prices_data = {
-        item.currency_code: item.price
-        for item in currency_prices
-    }
+    coin_prices = get_currency_prices(currency_codes=[currency_code])
 
     update.message.reply_text(
-        get_currency_prices_display(prices_data),
+        Coin.display(coin_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),
         parse_mode='HTML'
     )
 
@@ -239,14 +369,9 @@ def info(update: Update, context: CallbackContext) -> None:
     user_currencies = get_user_currencies(update.message.chat.id)
     currency_codes = default_currency_codes | user_currencies
 
-    currency_prices = get_currency_prices(currency_codes=currency_codes)
-
-    prices_data = {
-        item.currency_code: item.price
-        for item in currency_prices
-    }
+    coin_prices = get_currency_prices(currency_codes=currency_codes)
 
     update.message.reply_text(
-        get_currency_prices_display(prices_data),
+        Coin.display(coin_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),
         parse_mode='HTML'
     )

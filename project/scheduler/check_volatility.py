@@ -1,33 +1,28 @@
 import itertools
 import logging
-from typing import Iterable, Set
+from typing import Iterable
 
 from project import settings
 from project.api.coingecko import (
     get_currency_code_id_map,
     get_currency_prices,
-    get_ohlc,
     get_daily_currency_history,
-    STEP_MINUTES
+    get_ohlc,
 )
-from project.core.redis import get_redis
-from project.currencies.structures import ICON_ALERT, Ratio, VolatilityValue
-
-from project.utils import get_currency_prices_display
+from project.core.redis import get_chat_ids, get_all_user_currencies, get_volatility_threshold
+from project.currencies.structures import Coin, Ratio, VolatilityValue
+from project import constants
 
 logger = logging.getLogger(__name__)
 
-BORDER_PERCENTAGE = 2
-default_currency_codes = {'btc', 'eth'}
+default_currency_codes = {"btc", "eth"}
 
 
 def send_currency_prices():
     """Notify subscribers about currency prices every hour."""
     from project.app import tg_bot
 
-    redis = get_redis()
-    chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
-
+    chat_ids = get_chat_ids()
     if not chat_ids:
         return
 
@@ -44,18 +39,15 @@ def send_currency_prices():
     for chat_id in chat_ids:
         user_currencies = all_user_currencies.get(chat_id, [])
         user_currency_prices = [
-            item for item in currency_prices
+            item
+            for item in currency_prices
             if item.currency_code in default_currency_codes | user_currencies
         ]
-        prices_data = {
-            item.currency_code: item.price
-            for item in user_currency_prices
-        }
 
         tg_bot.send_message(
             chat_id=int(chat_id),
-            text=get_currency_prices_display(prices_data),
-            parse_mode='HTML',
+            text=Coin.display(user_currency_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),
+            parse_mode="HTML",
         )
 
     return currency_prices
@@ -65,9 +57,7 @@ def check_volatility(minutes: int):
     """Notify subscribers about currency volatility."""
     from project.app import tg_bot
 
-    redis = get_redis()
-    chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
-
+    chat_ids = get_chat_ids()
     if not chat_ids:
         return
 
@@ -80,8 +70,7 @@ def check_volatility(minutes: int):
     all_currency_codes = default_currency_codes | user_currency_codes
 
     volatility_data_by_currency = get_volatility_data_for_currencies(
-        currency_codes=all_currency_codes,
-        minutes=minutes
+        currency_codes=all_currency_codes, minutes=minutes
     )
 
     for chat_id in chat_ids:
@@ -95,57 +84,19 @@ def check_volatility(minutes: int):
                 continue
 
             if volatility.volatility > volatility_threshold:
-                ratio = Ratio.get_ratio_display(volatility.ratio)
-
-                lower_price = volatility.calculate_lower_value(volatility.x2, BORDER_PERCENTAGE)
-                upper_price = volatility.calculate_upper_value(volatility.x2, BORDER_PERCENTAGE)
-
-                message = (
-                    f'{ICON_ALERT} {currency}: {minutes} min., {volatility.volatility}% ({ratio}), '
-                    f'price: {volatility.x2} ({lower_price} - {upper_price}). '
-                    f'old price: {volatility.x1}'
-                )
                 tg_bot.send_message(
                     chat_id=int(chat_id),
-                    text=message,
-                    parse_mode='HTML',
+                    text=volatility.display(
+                        currency=currency,
+                        minutes_window=minutes,
+                        percentage=constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
+                    ),
+                    parse_mode="HTML",
                 )
-
-
-def get_all_user_currencies(chat_ids: Iterable[str]):
-    result = {}
-    for chat_id in chat_ids:
-        result.update({
-            chat_id: get_user_currencies(chat_id)
-        })
-    return result
-
-
-def get_user_currencies(chat_id: str):
-    redis = get_redis()
-
-    currencies = redis.smembers(
-        f'volatility:user:{chat_id}:currencies'
-    ) or set()
-
-    return {i.lower() for i in currencies}
-
-
-def get_volatility_threshold(chat_id):
-    redis = get_redis()
-
-    try:
-        volatility_threshold = float(
-            redis.get(f'volatility:user:{chat_id}:threshold')
-        )
-    except TypeError:
-        volatility_threshold = settings.VOLATILITY_THRESHOLD_PERCENT
-
-    return volatility_threshold
 
 
 def get_volatility_data_for_currencies(
-    currency_codes: Set[str],
+    currency_codes: set[str],
     minutes: int
 ) -> dict[str, VolatilityValue]:
     result = {}
@@ -157,12 +108,13 @@ def get_volatility_data_for_currencies(
         if not currency_id:
             continue
 
-        result.update({
-            currency_code: get_volatility_data(
-                currency_id=currency_id,
-                minutes=minutes
-            )
-        })
+        result.update(
+            {
+                currency_code: get_volatility_data(
+                    currency_id=currency_id, minutes=minutes
+                )
+            }
+        )
 
     return result
 
@@ -173,30 +125,27 @@ def get_volatility_data(currency_id: str, minutes: int) -> VolatilityValue:
     )
 
     sorted_prices_data = sorted(
-        prices_data,
-        key=lambda x: x.unix_timestamp,
-        reverse=True
+        prices_data, key=lambda x: x.unix_timestamp, reverse=True
     )
     latest_value = sorted_prices_data[0].value
 
-    index = minutes // STEP_MINUTES
+    index = minutes // constants.STEP_MINUTES
 
     try:
         minutes_ago = sorted_prices_data[index].value
     except KeyError:
-        raise Exception('error getting historical price')
+        raise Exception("error getting historical price")
 
     return VolatilityValue.calculate(minutes_ago, latest_value)
 
 
 def check_candles(candles_count=None, threshold=None):
     from project.app import tg_bot
+
     candles_count = candles_count or 4
     threshold = threshold or 0.5
 
-    redis = get_redis()
-    chat_ids = redis.smembers(settings.CHATS_CACHE_KEY)
-
+    chat_ids = get_chat_ids()
     if not chat_ids:
         return
 
@@ -224,14 +173,8 @@ def check_candles(candles_count=None, threshold=None):
             latest_values = candle_data[-candles_count:]
             closes = [item.close for item in latest_values]
 
-            is_downtrend = all(
-                x < y
-                for x, y in itertools.pairwise(closes)
-            )
-            is_uptrend = all(
-                x > y
-                for x, y in itertools.pairwise(closes)
-            )
+            is_downtrend = all(x < y for x, y in itertools.pairwise(closes))
+            is_uptrend = all(x > y for x, y in itertools.pairwise(closes))
 
             volatility = VolatilityValue.calculate(closes[0], closes[-1])
             ratio = Ratio.get_ratio_display(volatility.ratio)
@@ -243,26 +186,26 @@ def check_candles(candles_count=None, threshold=None):
                 continue
 
             message = (
-                f'{currency}: {ratio} ({candles_count} candles), '
-                f'{volatility.volatility}%'
+                f"{currency}: {ratio} ({candles_count} candles), "
+                f"{volatility.volatility}%"
             )
             tg_bot.send_message(
                 chat_id=int(chat_id),
                 text=message,
-                parse_mode='HTML',
+                parse_mode="HTML",
             )
 
 
-def get_candles_data_for_currencies(
-    currency_codes: Set[str]
-):
+def get_candles_data_for_currencies(currency_codes: set[str]):
     result = {}
 
     for currency_code in currency_codes:
-        result.update({
-            currency_code: get_ohlc(
-                currency_code=currency_code,
-            )
-        })
+        result.update(
+            {
+                currency_code: get_ohlc(
+                    currency_code=currency_code,
+                )
+            }
+        )
 
     return result
