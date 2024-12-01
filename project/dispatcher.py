@@ -268,12 +268,18 @@ def handle_toggle_notifications(update: Update, context: CallbackContext) -> int
     query = update.callback_query
     query.answer()
 
-    # chat_id = update.message.chat.id
-#
-    # is_enabled = setting_storage.toggle_notifications(chat_id)
+    chat_id = update.message.chat.id
+
+    try:
+        is_enabled = setting_storage.toggle_notifications(chat_id)
+    except Exception as e:
+        is_enabled = False
+        query.edit_message_text(
+            str(e)
+        )
 
     query.edit_message_text(
-        'Notifications have been enabled' # if is_enabled else 'Notifications have been disabled'
+        'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
     )
 
     return ConversationHandler.END
