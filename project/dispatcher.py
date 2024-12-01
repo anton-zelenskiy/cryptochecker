@@ -76,15 +76,15 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
             SettingState.CHOOSE_SETTING: [
                 CallbackQueryHandler(
                     handle_set_app_mode_command,
-                    pattern=SettingEnum.CMD_SET_APP_MODE.value
+                    pattern=f'^{SettingEnum.CMD_SET_APP_MODE.value}$'
                 ),
                 CallbackQueryHandler(
                     handle_set_volatility_threshold_command,
-                    pattern=SettingEnum.CMD_SET_VOLATILITY_THRESHOLD.value
+                    pattern=f'^{SettingEnum.CMD_SET_VOLATILITY_THRESHOLD.value}$'
                 ),
                 CallbackQueryHandler(
                     handle_toggle_notifications,
-                    pattern=SettingEnum.CMD_TOGGLE_NOTIFICATIONS.value
+                    pattern=f'^{SettingEnum.CMD_TOGGLE_NOTIFICATIONS.value}$'
                 ),
             ],
             SettingState.HANDLE_SET_APP_MODE: [
