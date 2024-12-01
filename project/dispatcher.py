@@ -278,9 +278,9 @@ def handle_toggle_notifications(update: Update, context: CallbackContext) -> int
             str(e)
         )
 
-    query.edit_message_text(
-        'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
-    )
+    text = 'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
+
+    query.edit_message_text(text=text)
 
     return ConversationHandler.END
 
