@@ -21,7 +21,7 @@ LOGGING_CONFIG = {
         },
         'debug': {
             'level': 'INFO',
-            'handlers': ['console_handler', 'file_handler'],
+            'handlers': ['console_handler'],
             'propagate': False,
         },
     },
@@ -32,14 +32,6 @@ LOGGING_CONFIG = {
             'stream': 'ext://sys.stdout',
             'formatter': 'simple'
         },
-        'file_handler': {
-            'level': 'INFO',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': 'debug.log',
-            'maxBytes': 1024,
-            'backupCount': 3,
-            'formatter': 'simple',
-        }
     },
     'formatters': {
         'simple': {
