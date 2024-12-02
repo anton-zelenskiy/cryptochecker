@@ -142,17 +142,8 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
 
 @error_handler
 def start(update: Update, context: CallbackContext):
-    reply_keyboard = [
-        ['btc', 'eth', 'ada'],
-        ['doge', 'xrp', 'link'],
-    ]
-
     update.message.reply_text(
-        'Hi! Type currency code to get price',
-        # reply_markup=ReplyKeyboardMarkup(
-        #     reply_keyboard,
-        #     one_time_keyboard=True,
-        # ),
+        'Hi! Type currency code to get its price',
     )
 
 
@@ -338,10 +329,19 @@ def list_currencies(update: Update, context: CallbackContext) -> int:
     user_currencies = redis.smembers(
         f'volatility:user:{user_id}:currencies'
     )
+    user_currencies = list(user_currencies)
+
+    chunks = [
+        user_currencies[x:x + 3]
+        for x in range(0, len(user_currencies), 3)
+    ]
 
     update.message.reply_text(
-        get_display_data(user_currencies),
-        parse_mode='HTML'
+        'Selected coins:',
+        reply_markup=ReplyKeyboardMarkup(
+            chunks,
+            one_time_keyboard=True,
+        )
     )
 
     return ConversationHandler.END

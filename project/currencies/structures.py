@@ -30,15 +30,15 @@ class Coin:
 
     @property
     def price_display(self) -> float:
-        return round(self.price, 3)
+        return round(self.price, constants.PRECISE)
 
     def lower_border(self, percent_change: float) -> float:
         value = self.price * (1 - percent_change / 100)
-        return round(value, 3)
+        return round(value, constants.PRECISE)
 
     def upper_border(self, percent_change: float) -> float:
         value = self.price * (1 + percent_change / 100)
-        return round(value, 3)
+        return round(value, constants.PRECISE)
 
     @classmethod
     def display(cls, coins: list['Coin'], percentage: int) -> str:
@@ -76,11 +76,11 @@ class VolatilityValue:
 
     def lower_border(self, percent_change: float) -> float:
         value = self.x2 * (1 - percent_change / 100)
-        return round(value, 3)
+        return round(value, constants.PRECISE)
 
     def upper_border(self, percent_change: float) -> float:
         value = self.x2 * (1 + percent_change / 100)
-        return round(value, 3)
+        return round(value, constants.PRECISE)
 
     def display(self, currency: str, minutes_window: int, percentage: int) -> str:
         return (
