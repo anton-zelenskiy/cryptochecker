@@ -17,7 +17,7 @@ LOGGING_CONFIG = {
         'formatter': 'default'
     }},
     'root': {
-        'level': 'DEBUG',
+        'level': 'INFO',
         'handlers': ['wsgi']
     }
 }
