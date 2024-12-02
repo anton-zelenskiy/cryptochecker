@@ -10,17 +10,43 @@ TELEGRAM_API_TOKEN = os.getenv('TELEGRAM_API_TOKEN', '')
 
 LOGGING_CONFIG = {
     'version': 1,
-    'formatters': {'default': {
-        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
-    }},
-    'handlers': {'wsgi': {
-        'class': 'logging.StreamHandler',
-        'formatter': 'default'
-    }},
-    'root': {
-        'level': 'INFO',
-        'handlers': ['wsgi']
-    }
+    'loggers': {
+        '': {
+            'level': 'INFO',
+            'handlers': ['console_handler'],
+        },
+        'imp_calc': {
+            'level': 'INFO',
+            'handlers': ['console_handler'],
+            'propagate': False,
+        },
+        'debug': {
+            'level': 'INFO',
+            'handlers': ['console_handler', 'file_handler'],
+            'propagate': False,
+        },
+    },
+    'handlers': {
+        'console_handler': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout',
+            'formatter': 'simple'
+        },
+        'file_handler': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': 'debug.log',
+            'maxBytes': 1024,
+            'backupCount': 3,
+            'formatter': 'simple',
+        }
+    },
+    'formatters': {
+        'simple': {
+            'format': '%(pathname)s:%(lineno)d %(name)s %(asctime)s - %(levelname)s - %(message)s',
+        },
+    },
 }
 
 WEBHOOK_HOST = os.getenv('WEBHOOK_HOST', '')
