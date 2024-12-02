@@ -9,6 +9,7 @@ from project.celery_app import make_celery, CELERY_CONFIG
 from project.dispatcher import init_dispatcher
 
 dictConfig(settings.LOGGING_CONFIG)
+logging.getLogger().setLevel(logging.DEBUG)
 
 WEBHOOK_URL_BASE = f'https://{settings.WEBHOOK_HOST}:{settings.WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{settings.TELEGRAM_API_TOKEN}/'
