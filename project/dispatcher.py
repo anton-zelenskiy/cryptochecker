@@ -32,7 +32,7 @@ redis = get_redis()
 
 setting_storage = SettingStorage()
 
-logger = structlog.let_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class CurrencyState(enum.IntEnum):
