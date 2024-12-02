@@ -2,10 +2,12 @@ import datetime
 from functools import lru_cache
 from pycoingecko import CoinGeckoAPI
 from typing import List, Iterable
+import logging
 
 from project.api.constants import CURRENCY_CODE_ID_OVERRIDE_MAP
 from project.currencies.structures import HistoryData, Coin, CandleData
 
+logger = logging.getLogger(__name__)
 api = CoinGeckoAPI()
 
 
@@ -71,6 +73,8 @@ def get_currency_prices(currency_codes: Iterable[str]) -> list[Coin]:
         ids=currency_ids,
         vs_currencies='usd'
     )
+
+    logger.info('got currency prices')
 
     currency_id_code_map = get_currency_id_code_map()
 
