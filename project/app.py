@@ -1,5 +1,6 @@
 import logging
 from logging.config import dictConfig
+import structlog
 
 import telegram
 from flask import Flask, request
@@ -17,10 +18,6 @@ WEBHOOK_URL_PATH = f'/{settings.TELEGRAM_API_TOKEN}/'
 app = Flask(__name__)
 app.config.update(CELERY_CONFIG=CELERY_CONFIG)
 celery = make_celery(app)
-
-s_handler = logging.StreamHandler()
-s_handler.setLevel(logging.DEBUG)
-app.logger.addHandler(s_handler)
 
 tg_bot = telegram.Bot(settings.TELEGRAM_API_TOKEN)
 dispatcher = init_dispatcher(bot=tg_bot)
@@ -72,4 +69,17 @@ def updates():
 
 
 if __name__ == '__main__':
+    structlog.configure(
+        processors=[
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.add_logger_name,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
+        ],
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+    )
     app.run(use_reloader=False)

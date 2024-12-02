@@ -1,5 +1,5 @@
 import enum
-from logging import getLogger
+import structlog
 from queue import Queue
 
 from scheduler.check_volatility import (
@@ -32,7 +32,7 @@ redis = get_redis()
 
 setting_storage = SettingStorage()
 
-logger = getLogger(__name__)
+logger = structlog.let_logger(__name__)
 
 
 class CurrencyState(enum.IntEnum):
