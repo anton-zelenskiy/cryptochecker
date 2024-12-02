@@ -10,6 +10,7 @@ from project.dispatcher import init_dispatcher
 
 dictConfig(settings.LOGGING_CONFIG)
 logging.basicConfig(level=logging.DEBUG)
+logging.getLogger('parso.python.diff').disabled = True
 
 WEBHOOK_URL_BASE = f'https://{settings.WEBHOOK_HOST}:{settings.WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{settings.TELEGRAM_API_TOKEN}/'
@@ -17,8 +18,6 @@ WEBHOOK_URL_PATH = f'/{settings.TELEGRAM_API_TOKEN}/'
 tg_bot = telegram.Bot(settings.TELEGRAM_API_TOKEN)
 
 dispatcher = init_dispatcher(bot=tg_bot)
-
-logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config.update(CELERY_CONFIG=CELERY_CONFIG)
