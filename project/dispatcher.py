@@ -268,17 +268,22 @@ def handle_set_volatility_threshold_value(update: Update, context: CallbackConte
 
 def handle_toggle_notifications(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    query.answer()
+    try:
+        query.answer()
 
-    user_id = update.message.from_user.id
+        user_id = update.message.from_user.id
 
-    is_enabled = setting_storage.toggle_notifications(user_id)
+        is_enabled = setting_storage.toggle_notifications(user_id)
 
-    query.edit_message_text(
-        'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
-    )
+        query.edit_message_text(
+            'Notifications have been enabled' # if is_enabled else 'Notifications have been disabled'
+        )
 
-    return ConversationHandler.END
+        return ConversationHandler.END
+    except Exception as e:
+        query.edit_message_text(
+            str(e)
+        )
 
 
 def list_currencies(update: Update, context: CallbackContext) -> int:
