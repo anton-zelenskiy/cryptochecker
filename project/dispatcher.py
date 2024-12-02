@@ -26,6 +26,7 @@ from project.api.coingecko import (
 )
 from project.core.redis import get_redis, SettingStorage
 from project.currencies.structures import AppMode
+from project.utils import error_handler
 
 redis = get_redis()
 
@@ -133,6 +134,7 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
     return dp
 
 
+@error_handler
 def start(update: Update, context: CallbackContext):
     reply_keyboard = [
         ['btc', 'eth', 'ada'],
@@ -148,6 +150,7 @@ def start(update: Update, context: CallbackContext):
     )
 
 
+@error_handler
 def handle_settings(update: Update, context: CallbackContext) -> int:
     buttons = [
         [
@@ -178,6 +181,7 @@ def handle_settings(update: Update, context: CallbackContext) -> int:
     return SettingState.CHOOSE_SETTING
 
 
+@error_handler
 def handle_set_app_mode_command(
     update: Update,
     context: CallbackContext
@@ -208,6 +212,7 @@ def handle_set_app_mode_command(
     return SettingState.HANDLE_SET_APP_MODE
 
 
+@error_handler
 def handle_check_selected_coins(
     update: Update,
     context: CallbackContext
@@ -215,7 +220,7 @@ def handle_check_selected_coins(
     query = update.callback_query
     query.answer()
 
-    user_id = update.message.from_user.id
+    user_id = query.from_user.id
 
     setting_storage.set_app_mode(chat_id=user_id, value=AppMode.CHECK_SELECTED_COINS)
 
@@ -224,6 +229,7 @@ def handle_check_selected_coins(
     return ConversationHandler.END
 
 
+@error_handler
 def handle_check_all_coins(
     update: Update,
     context: CallbackContext
@@ -231,7 +237,7 @@ def handle_check_all_coins(
     query = update.callback_query
     query.answer()
 
-    user_id = update.message.from_user.id
+    user_id = query.from_user.id
 
     setting_storage.set_app_mode(chat_id=user_id, value=AppMode.CHECK_ALL_COINS)
 
@@ -240,6 +246,7 @@ def handle_check_all_coins(
     return ConversationHandler.END
 
 
+@error_handler
 def handle_set_volatility_threshold_command(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     query.answer()
@@ -249,6 +256,7 @@ def handle_set_volatility_threshold_command(update: Update, context: CallbackCon
     return SettingState.HANDLE_SET_VOLATILITY_THRESHOLD
 
 
+@error_handler
 def handle_set_volatility_threshold_value(update: Update, context: CallbackContext) -> int:
     try:
         value = float(update.message.text)
@@ -266,26 +274,23 @@ def handle_set_volatility_threshold_value(update: Update, context: CallbackConte
     return ConversationHandler.END
 
 
+@error_handler
 def handle_toggle_notifications(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
-    try:
-        query.answer()
+    query.answer()
 
-        user_id = update.message.from_user.id
+    user_id = update.message.from_user.id  # query.from_user.id
 
-        is_enabled = setting_storage.toggle_notifications(user_id)
+    is_enabled = setting_storage.toggle_notifications(user_id)
 
-        query.edit_message_text(
-            'Notifications have been enabled' # if is_enabled else 'Notifications have been disabled'
-        )
+    query.edit_message_text(
+        'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
+    )
 
-        return ConversationHandler.END
-    except Exception as e:
-        query.edit_message_text(
-            str(e)
-        )
+    return ConversationHandler.END
 
 
+@error_handler
 def list_currencies(update: Update, context: CallbackContext) -> int:
     def get_display_data(data):
         """Wraps info in html tags."""
@@ -309,12 +314,14 @@ def list_currencies(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
+@error_handler
 def add_currency_command(update: Update, context: CallbackContext) -> int:
     update.message.reply_text('Please type currency code:')
 
     return CurrencyState.ADD_CURRENCY
 
 
+@error_handler
 def add_currency_value(update: Update, context: CallbackContext) -> int:
     currency_code = str(update.message.text).lower()
 
@@ -333,12 +340,14 @@ def add_currency_value(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
+@error_handler
 def del_currency_command(update: Update, context: CallbackContext) -> int:
     update.message.reply_text('Please type currency code to delete:')
 
     return CurrencyState.DEL_CURRENCY
 
 
+@error_handler
 def del_currency_value(update: Update, context: CallbackContext) -> int:
     currency_code = str(update.message.text).lower()
 
@@ -357,6 +366,7 @@ def del_currency_value(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
+@error_handler
 def cancel(update: Update, context: CallbackContext) -> int:
     """Cancels and ends the conversation."""
     update.message.reply_text(
@@ -367,6 +377,7 @@ def cancel(update: Update, context: CallbackContext) -> int:
     return ConversationHandler.END
 
 
+@error_handler
 def currency_price(update: Update, context: CallbackContext) -> None:
     currency_code = str(update.message.text).lower()
 
@@ -381,6 +392,7 @@ def currency_price(update: Update, context: CallbackContext) -> None:
     )
 
 
+@error_handler
 def info(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
 
