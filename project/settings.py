@@ -3,6 +3,7 @@ import logging
 
 
 logging.getLogger('parso.python.diff').disabled = True
+logging.getLogger().setLevel(logging.DEBUG)
 
 
 TELEGRAM_API_TOKEN = os.getenv('TELEGRAM_API_TOKEN', '')
