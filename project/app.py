@@ -18,8 +18,11 @@ app = Flask(__name__)
 app.config.update(CELERY_CONFIG=CELERY_CONFIG)
 celery = make_celery(app)
 
-tg_bot = telegram.Bot(settings.TELEGRAM_API_TOKEN)
+s_handler = logging.StreamHandler()
+s_handler.setLevel(logging.DEBUG)
+app.logger.addHandler(s_handler)
 
+tg_bot = telegram.Bot(settings.TELEGRAM_API_TOKEN)
 dispatcher = init_dispatcher(bot=tg_bot)
 
 @app.route('/', methods=['GET', 'HEAD'])
