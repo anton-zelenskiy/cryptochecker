@@ -8,51 +8,19 @@ from project import settings
 from project.celery_app import make_celery, CELERY_CONFIG
 from project.dispatcher import init_dispatcher
 
-dictConfig({
-    'version': 1,
-    'loggers': {
-        '': {
-            'level': 'INFO',
-            'handlers': ['console_handler'],
-        },
-        'imp_calc': {
-            'level': 'INFO',
-            'handlers': ['console_handler'],
-            'propagate': False,
-        },
-        'debug': {
-            'level': 'INFO',
-            'handlers': ['console_handler'],
-            'propagate': False,
-        },
-    },
-    'handlers': {
-        'console_handler': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'stream': 'ext://sys.stdout',
-            'formatter': 'simple'
-        },
-    },
-    'formatters': {
-        'simple': {
-            'format': '%(pathname)s:%(lineno)d %(name)s %(asctime)s - %(levelname)s - %(message)s',
-        },
-    },
-})
+dictConfig(settings.LOGGING_CONFIG)
 # logging.getLogger('parso.python.diff').disabled = True
 
 WEBHOOK_URL_BASE = f'https://{settings.WEBHOOK_HOST}:{settings.WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{settings.TELEGRAM_API_TOKEN}/'
 
-tg_bot = telegram.Bot(settings.TELEGRAM_API_TOKEN)
-
-dispatcher = init_dispatcher(bot=tg_bot)
-
 app = Flask(__name__)
 app.config.update(CELERY_CONFIG=CELERY_CONFIG)
 celery = make_celery(app)
 
+tg_bot = telegram.Bot(settings.TELEGRAM_API_TOKEN)
+
+dispatcher = init_dispatcher(bot=tg_bot)
 
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
