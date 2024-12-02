@@ -276,6 +276,7 @@ def handle_set_volatility_threshold_value(update: Update, context: CallbackConte
 
 @error_handler
 def handle_toggle_notifications(update: Update, context: CallbackContext) -> int:
+    logger.info('toggle notif')
     query = update.callback_query
     query.answer()
 
