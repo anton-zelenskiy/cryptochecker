@@ -215,9 +215,9 @@ def handle_check_selected_coins(
     query = update.callback_query
     query.answer()
 
-    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
 
-    setting_storage.set_app_mode(chat_id=chat_id, value=AppMode.CHECK_SELECTED_COINS)
+    setting_storage.set_app_mode(chat_id=user_id, value=AppMode.CHECK_SELECTED_COINS)
 
     query.edit_message_text(text=f'Success! current app mode: {AppMode.CHECK_SELECTED_COINS.name}')
 
@@ -231,9 +231,9 @@ def handle_check_all_coins(
     query = update.callback_query
     query.answer()
 
-    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
 
-    setting_storage.set_app_mode(chat_id=chat_id, value=AppMode.CHECK_ALL_COINS)
+    setting_storage.set_app_mode(chat_id=user_id, value=AppMode.CHECK_ALL_COINS)
 
     query.edit_message_text(text=f'Success! current app mode: {AppMode.CHECK_ALL_COINS.name}')
 
@@ -257,7 +257,9 @@ def handle_set_volatility_threshold_value(update: Update, context: CallbackConte
         update.message.reply_text('invalid value, try again:')
         return SettingState.HANDLE_SET_VOLATILITY_THRESHOLD
 
-    redis.set(f'volatility:user:{update.message.chat.id}:threshold', value)
+    user_id = update.message.from_user.id
+
+    redis.set(f'volatility:user:{user_id}:threshold', value)
 
     update.message.reply_text('Volatility threshold updated successfully')
 
@@ -268,19 +270,13 @@ def handle_toggle_notifications(update: Update, context: CallbackContext) -> int
     query = update.callback_query
     query.answer()
 
-    chat_id = update.message.chat.id
+    user_id = update.message.from_user.id
 
-    try:
-        is_enabled = setting_storage.toggle_notifications(chat_id)
-    except Exception as e:
-        is_enabled = False
-        query.edit_message_text(
-            str(e)
-        )
+    is_enabled = setting_storage.toggle_notifications(user_id)
 
-    text = 'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
-
-    query.edit_message_text(text=text)
+    query.edit_message_text(
+        'Notifications have been enabled' if is_enabled else 'Notifications have been disabled'
+    )
 
     return ConversationHandler.END
 
@@ -294,8 +290,10 @@ def list_currencies(update: Update, context: CallbackContext) -> int:
 
         return '\n'.join(rows)
 
+    user_id = update.message.from_user.id
+
     user_currencies = redis.smembers(
-        f'volatility:user:{update.message.chat.id}:currencies'
+        f'volatility:user:{user_id}:currencies'
     )
 
     update.message.reply_text(
@@ -319,8 +317,10 @@ def add_currency_value(update: Update, context: CallbackContext) -> int:
         update.message.reply_text('invalid currency, try again:')
         return CurrencyState.ADD_CURRENCY
 
+    user_id = update.message.from_user.id
+
     redis.sadd(
-        f'volatility:user:{update.message.chat.id}:currencies',
+        f'volatility:user:{user_id}:currencies',
         currency_code
     )
     update.message.reply_text('Currency added successfully')
@@ -341,8 +341,10 @@ def del_currency_value(update: Update, context: CallbackContext) -> int:
         update.message.reply_text('invalid currency, try again:')
         return CurrencyState.DEL_CURRENCY.value
 
+    user_id = update.message.from_user.id
+
     redis.srem(
-        f'volatility:user:{update.message.chat.id}:currencies',
+        f'volatility:user:{user_id}:currencies',
         currency_code
     )
     update.message.reply_text('Currency deleted successfully')
@@ -375,7 +377,9 @@ def currency_price(update: Update, context: CallbackContext) -> None:
 
 
 def info(update: Update, context: CallbackContext) -> None:
-    user_currencies = get_user_currencies(update.message.chat.id)
+    user_id = update.message.from_user.id
+
+    user_currencies = get_user_currencies(user_id)
     currency_codes = default_currency_codes | user_currencies
 
     coin_prices = get_currency_prices(currency_codes=currency_codes)
