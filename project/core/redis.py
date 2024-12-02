@@ -34,7 +34,7 @@ class SettingStorage:
         return {i.lower() for i in currencies}
 
 
-    def get_volatility_threshold(self, chat_id: str):
+    def get_volatility_threshold(self, chat_id: str | int):
         redis = get_redis()
 
         value = redis.get(f"volatility:user:{chat_id}:threshold") or constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
@@ -47,7 +47,7 @@ class SettingStorage:
         return volatility_threshold
 
 
-    def get_app_mode(self, chat_id: str) -> AppMode:
+    def get_app_mode(self, chat_id: str | int) -> AppMode:
         value = self.redis.get(f'user:{chat_id}:app_mode') or AppMode.CHECK_SELECTED_COINS
         return AppMode(value)
 

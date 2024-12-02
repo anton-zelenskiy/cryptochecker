@@ -48,6 +48,7 @@ class SettingState(enum.IntEnum):
 
 
 class SettingEnum(enum.Enum):
+    CMD_SHOW_CURRENT_SETTINGS = 'CMD_SHOW_CURRENT_SETTINGS'
     CMD_SET_APP_MODE = 'CMD_SET_APP_MODE'
     CMD_CHECK_SELECTED_COINS = 'CMD_CHECK_SELECTED_COINS'
     CMD_CHECK_ALL_COINS = 'CMD_CHECK_ALL_COINS'
@@ -65,6 +66,7 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
     list_currencies - List of currencies used by volatility checker
     add_currency - Add currency to volatility checker
     del_currency - Delete currency from volatility checker
+    cancel - Cancel conversation
     """
     queue = Queue()
     dp = Dispatcher(bot=bot, update_queue=queue)
@@ -86,6 +88,10 @@ def init_dispatcher(bot: Bot) -> Dispatcher:
                 CallbackQueryHandler(
                     handle_toggle_notifications,
                     pattern=f'^{SettingEnum.CMD_TOGGLE_NOTIFICATIONS.value}$'
+                ),
+                CallbackQueryHandler(
+                    handle_show_current_settings,
+                    pattern=f'^{SettingEnum.CMD_SHOW_CURRENT_SETTINGS.value}$'
                 ),
             ],
             SettingState.HANDLE_SET_APP_MODE: [
@@ -155,6 +161,12 @@ def handle_settings(update: Update, context: CallbackContext) -> int:
     buttons = [
         [
             InlineKeyboardButton(
+                text='show current settings',
+                callback_data=SettingEnum.CMD_SHOW_CURRENT_SETTINGS.value,
+            )
+        ],
+        [
+            InlineKeyboardButton(
                 text='set app mode',
                 callback_data=SettingEnum.CMD_SET_APP_MODE.value,
             )
@@ -179,6 +191,26 @@ def handle_settings(update: Update, context: CallbackContext) -> int:
     )
 
     return SettingState.CHOOSE_SETTING
+
+
+@error_handler
+def handle_show_current_settings(update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    query.answer()
+
+    user_id = query.from_user.id
+
+    notifications_is_enabled = setting_storage.is_notifications_enabled(user_id)
+    volatility_threshold = setting_storage.get_volatility_threshold(user_id)
+    app_mode = setting_storage.get_app_mode(user_id)
+
+    query.edit_message_text(
+        f"notifications: {'enabled' if notifications_is_enabled else 'disabled'}\n"
+        f"volatility_threshold: {volatility_threshold}%\n"
+        f"app mode: {app_mode.name}"
+    )
+
+    return ConversationHandler.END
 
 
 @error_handler
@@ -280,7 +312,7 @@ def handle_toggle_notifications(update: Update, context: CallbackContext) -> int
     query = update.callback_query
     query.answer()
 
-    user_id = update.message.from_user.id  # query.from_user.id
+    user_id = query.from_user.id
 
     is_enabled = setting_storage.toggle_notifications(user_id)
 
