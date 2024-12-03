@@ -31,6 +31,12 @@ class RequestCounter:
     def stats(self) -> dict[str, Any]:
         counter = Counter(self._collector)
         
+        if not counter:
+            return {
+                'top': 0,
+                'avg': 0,
+            }
+        
         top_rpm = counter.most_common(1)[0]
         avg_rpm = counter.total() // len(list(counter))
         
