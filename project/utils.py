@@ -40,6 +40,8 @@ def request_counter(func: Callable):
     def wrapper(*args, **kwargs):
         value = func(*args, **kwargs)
         request_stat.collect()
+        
+        logger.info('request stats:', stat=request_stat.stats().most_common(5))
 
         return value
     return wrapper
