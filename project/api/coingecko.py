@@ -7,13 +7,13 @@ import structlog
 from project.api.constants import CURRENCY_CODE_ID_OVERRIDE_MAP
 from project.api.base import CoinMarketAPI
 from project.currencies.structures import HistoryData, Coin, CandleData
+from project.utils import request_counter
 
 logger = structlog.get_logger(__name__)
 
 
 class CoingeckoMarketAPI(CoinMarketAPI):
     def __init__(self) -> None:
-        super().__init__()
         self._client = CoinGeckoAPI()
 
     @lru_cache(maxsize=1024)
@@ -40,6 +40,7 @@ class CoingeckoMarketAPI(CoinMarketAPI):
     def is_currency_code_exists(self, currency_code: str) -> bool:
         return currency_code in self.get_currency_code_id_map()
 
+    @request_counter
     def get_history_price(self, currency_code: str) -> list[HistoryData]:
         currency_code_id_map = self.get_currency_code_id_map()
         currency_id = currency_code_id_map.get(currency_code)
@@ -57,6 +58,7 @@ class CoingeckoMarketAPI(CoinMarketAPI):
             for ts, price in prices_data
         ]
 
+    @request_counter
     def get_currency_prices(self, currency_codes: Iterable[str]) -> list[Coin]:
         currency_code_id_map = self.get_currency_code_id_map()
         currency_ids = [
@@ -81,6 +83,7 @@ class CoingeckoMarketAPI(CoinMarketAPI):
             for currency_id, price in currency_prices.items()
         ]
 
+    @request_counter
     def get_ohlc(self, currency_code: str) -> list[CandleData]:
         currency_code_id_map = self.get_currency_code_id_map()
         currency_id = currency_code_id_map.get(currency_code)
