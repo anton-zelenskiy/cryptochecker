@@ -191,11 +191,16 @@ def handle_show_current_settings(update: Update, context: CallbackContext) -> in
     notifications_is_enabled = setting_storage.is_notifications_enabled(user_id)
     volatility_threshold = setting_storage.get_volatility_threshold(user_id)
     app_mode = setting_storage.get_app_mode(user_id)
+    
+    ##
+    from project.utils import request_stat
+    ##
 
     query.edit_message_text(
         f"notifications: {'enabled' if notifications_is_enabled else 'disabled'}\n"
         f"volatility_threshold: {volatility_threshold}%\n"
-        f"app mode: {app_mode.name}"
+        f"app mode: {app_mode.name}\n"
+        f"stats: {str(request_stat.stats().most_common(5))}"
     )
 
     return ConversationHandler.END
