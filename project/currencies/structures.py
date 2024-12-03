@@ -104,3 +104,4 @@ class CandleData:
     low: float
     close: float
     volume: float = 0
+    turnover: float = 0

@@ -5,6 +5,7 @@ import structlog
 
 from project.currencies.structures import Coin, CandleData, HistoryData
 from project.api.base import CoinMarketAPI
+from project.utils import request_counter
 
 logger = structlog.get_logger(__name__)
 
@@ -13,6 +14,7 @@ class KucoinMarketAPI(CoinMarketAPI):
     def __init__(self):
         self._client = Market(url='https://api.kucoin.com')
 
+    @request_counter
     def get_currency_prices(self, currency_codes: Iterable[str]) -> list[Coin]:
         currency_prices: dict[str, str] = self._client.get_fiat_price(
             base='USD',
@@ -26,7 +28,8 @@ class KucoinMarketAPI(CoinMarketAPI):
             )
             for code, price in currency_prices.items()
         ]
-        
+    
+    @request_counter
     def get_history_price(self, currency_code: str) -> list[HistoryData]:
         data = self.get_ohlc(currency_code=currency_code)
 
@@ -37,7 +40,8 @@ class KucoinMarketAPI(CoinMarketAPI):
             )
             for item in data
         ]
-        
+    
+    @request_counter
     def get_ohlc(self, currency_code: str) -> list[CandleData]:
         now = datetime.datetime.now()
         
@@ -59,6 +63,7 @@ class KucoinMarketAPI(CoinMarketAPI):
                 high=float(high_),
                 low=float(low_),
                 volume=float(volume_),
+                turnover=float(turnover_)
             )
             for ts, open_, close_, high_, low_, volume_, turnover_ in data
         ]

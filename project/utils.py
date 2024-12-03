@@ -41,7 +41,7 @@ def request_counter(func: Callable):
         value = func(*args, **kwargs)
         request_stat.collect()
         
-        logger.info('request stats:', stat=request_stat.stats().most_common(5))
+        logger.info('request stats:', stat=request_stat.stats().most_common(3))
 
         return value
     return wrapper

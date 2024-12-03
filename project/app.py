@@ -1,5 +1,6 @@
 from logging.config import dictConfig
 import structlog
+import sentry_sdk
 
 import telegram
 from flask import Flask, request
@@ -10,6 +11,19 @@ from project.dispatcher import init_dispatcher
 
 dictConfig(settings.LOGGING_CONFIG)
 # logging.getLogger('parso.python.diff').disabled = True
+
+sentry_sdk.init(
+    dsn="https://44c8b9c3e8e47732c5e71496a0a5f214@o65801.ingest.us.sentry.io/4508405180399616",
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for tracing.
+    traces_sample_rate=1.0,
+    _experiments={
+        # Set continuous_profiling_auto_start to True
+        # to automatically start the profiler on when
+        # possible.
+        "continuous_profiling_auto_start": True,
+    },
+)
 
 WEBHOOK_URL_BASE = f'https://{settings.WEBHOOK_HOST}:{settings.WEBHOOK_PORT}'
 WEBHOOK_URL_PATH = f'/{settings.TELEGRAM_API_TOKEN}/'
@@ -24,6 +38,12 @@ dispatcher = init_dispatcher(bot=tg_bot)
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
     return 'Hi there!'
+
+
+@app.route("/")
+def test_sentry():
+    var = 1 / 0
+    return f"<p>Hello, World! {var}</p>"
 
 
 @app.route(f'{WEBHOOK_URL_PATH}get/', methods=['GET'])
