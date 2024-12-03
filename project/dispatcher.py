@@ -198,7 +198,7 @@ def handle_show_current_settings(update: Update, context: CallbackContext) -> in
         f"Notifications: <b>{'enabled' if notifications_is_enabled else 'disabled'}</b>\n"
         f"Volatility threshold: <b>{volatility_threshold}%<b>\n"
         f"App mode: <b>{app_mode.name}</b>\n"
-        f"RPM: <b>top - {rpm_stats['top']}; avg: {rpm_stats['avg']}</b>",
+        f"RPM: <b>top - {str(rpm_stats['top'])}; avg: {rpm_stats['avg']}</b>",
         parse_mode=PARSEMODE_HTML,
     )
 
