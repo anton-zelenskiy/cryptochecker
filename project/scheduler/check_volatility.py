@@ -1,9 +1,7 @@
 import itertools
 import structlog
 
-from project.api.coingecko import (
-    CoingeckoMarketAPI,
-)
+from project.api.coingecko import CoingeckoMarketAPI
 from project.api.kucoin import KucoinMarketAPI
 from project.currencies.structures import Coin, Ratio, VolatilityValue
 from project import constants

@@ -21,7 +21,7 @@ class KucoinMarketAPI(CoinMarketAPI):
 
         return [
             Coin(
-                currency_code=code,
+                currency_code=code.lower(),
                 price=float(price),
             )
             for code, price in currency_prices.items()
@@ -31,7 +31,10 @@ class KucoinMarketAPI(CoinMarketAPI):
         data = self.get_ohlc(currency_code=currency_code)
 
         return [
-            HistoryData(unix_timestamp=int(item.datetime.timestamp()), value=item.close)
+            HistoryData(
+                unix_timestamp=int(item.datetime.timestamp()),
+                value=float(item.close)
+            )
             for item in data
         ]
         
@@ -51,11 +54,11 @@ class KucoinMarketAPI(CoinMarketAPI):
         return [
             CandleData(
                 datetime=datetime.datetime.fromtimestamp(int(ts)),
-                open=open_,
-                close=close_,
-                high=high_,
-                low=low_,
-                volume=volume_,
+                open=float(open_),
+                close=float(close_),
+                high=float(high_),
+                low=float(low_),
+                volume=float(volume_),
             )
             for ts, open_, close_, high_, low_, volume_, turnover_ in data
         ]
