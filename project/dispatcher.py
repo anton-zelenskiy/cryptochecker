@@ -15,6 +15,7 @@ from telegram.ext import (
     Filters,
     MessageHandler,
 )
+from telegram.constants import PARSEMODE_HTML
 
 from project import constants
 from project.currencies.structures import Coin
@@ -23,7 +24,7 @@ from project.api.coingecko import (
 )
 from project.core.redis import SettingStorage
 from project.currencies.structures import AppMode
-from project.utils import error_handler
+from project.utils import error_handler, rpm_counter
 
 setting_storage = SettingStorage()
 
@@ -191,16 +192,14 @@ def handle_show_current_settings(update: Update, context: CallbackContext) -> in
     notifications_is_enabled = setting_storage.is_notifications_enabled(user_id)
     volatility_threshold = setting_storage.get_volatility_threshold(user_id)
     app_mode = setting_storage.get_app_mode(user_id)
-    
-    ##
-    from project.utils import request_stat
-    ##
+    rpm_stats = rpm_counter.stats()
 
     query.edit_message_text(
-        f"notifications: {'enabled' if notifications_is_enabled else 'disabled'}\n"
-        f"volatility_threshold: {volatility_threshold}%\n"
-        f"app mode: {app_mode.name}\n"
-        f"stats: {str(request_stat.stats().most_common(5))}"
+        f"Notifications: <b>{'enabled' if notifications_is_enabled else 'disabled'}</b>\n"
+        f"Volatility threshold: <b>{volatility_threshold}%<b>\n"
+        f"App mode: <b>{app_mode.name}</b>\n"
+        f"RPM: <b>top - {rpm_stats['top']}; avg: {rpm_stats['avg']}</b>",
+        parse_mode=PARSEMODE_HTML,
     )
 
     return ConversationHandler.END
@@ -317,14 +316,6 @@ def handle_toggle_notifications(update: Update, context: CallbackContext) -> int
 
 @error_handler
 def list_currencies(update: Update, context: CallbackContext) -> int:
-    def get_display_data(data):
-        """Wraps info in html tags."""
-        rows = []
-        for item in data:
-            rows.append(f'<b>{item}</b>')
-
-        return '\n'.join(rows)
-
     user_id = update.message.from_user.id
 
     user_currencies = setting_storage.get_user_currencies(user_id)
@@ -414,7 +405,7 @@ def currency_price(update: Update, context: CallbackContext) -> None:
 
     update.message.reply_text(
         Coin.display(coin_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),
-        parse_mode='HTML'
+        parse_mode=PARSEMODE_HTML
     )
 
 
@@ -429,5 +420,5 @@ def info(update: Update, context: CallbackContext) -> None:
 
     update.message.reply_text(
         Coin.display(coin_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),
-        parse_mode='HTML'
+        parse_mode=PARSEMODE_HTML
     )

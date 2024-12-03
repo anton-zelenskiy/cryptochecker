@@ -40,7 +40,7 @@ def index():
     return 'Hi there!'
 
 
-@app.route("/")
+@app.route('/test_sentry/', methods=['GET'])
 def test_sentry():
     var = 1 / 0
     return f"<p>Hello, World! {var}</p>"

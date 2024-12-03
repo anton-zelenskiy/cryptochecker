@@ -71,7 +71,7 @@ class CoingeckoMarketAPI(CoinMarketAPI):
             vs_currencies='usd'
         )
 
-        logger.info('got currency prices')
+        logger.info('got currency prices', data=currency_prices)
 
         currency_id_code_map = self.get_currency_id_code_map()
 

@@ -1,5 +1,5 @@
 import functools
-from typing import Callable
+from typing import Callable, Any
 import structlog
 from collections import Counter
 import datetime
@@ -7,7 +7,7 @@ import datetime
 logger = structlog.get_logger(__name__)
 
 
-def error_handler(func: Callable):
+def error_handler(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -28,20 +28,28 @@ class RequestCounter:
         )
         self._collector.append(ts)
 
-    def stats(self):
-        return Counter(self._collector)
+    def stats(self) -> dict[str, Any]:
+        counter = Counter(self._collector)
+        
+        top_rpm = counter.most_common(1)[0]
+        avg_rpm = counter.total() // len(list(counter))
+        
+        return {
+            'top': (top_rpm[0], top_rpm[1]),
+            'avg': avg_rpm
+        }
 
 
-request_stat = RequestCounter()
+rpm_counter = RequestCounter()
 
 
-def request_counter(func: Callable):
+def request_counter(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         value = func(*args, **kwargs)
-        request_stat.collect()
+        rpm_counter.collect()
         
-        logger.info('request stats:', stat=request_stat.stats().most_common(3))
+        logger.info('rpm:', stats=rpm_counter.stats())
 
         return value
     return wrapper

@@ -20,6 +20,8 @@ class KucoinMarketAPI(CoinMarketAPI):
             base='USD',
             currencies=','.join(c.upper() for c in currency_codes)
         ) # type: ignore
+        
+        logger.info('got currency prices', data=currency_prices)
 
         return [
             Coin(
@@ -32,6 +34,8 @@ class KucoinMarketAPI(CoinMarketAPI):
     @request_counter
     def get_history_price(self, currency_code: str) -> list[HistoryData]:
         data = self.get_ohlc(currency_code=currency_code)
+        
+        logger.info('got history price', data=data)
 
         return [
             HistoryData(
@@ -54,6 +58,8 @@ class KucoinMarketAPI(CoinMarketAPI):
             startAt=hour_ago_seconds,
             endAt=now_seconds,
         )  # type: ignore
+        
+        logger.info('got ohlc data', data=data)
         
         return [
             CandleData(

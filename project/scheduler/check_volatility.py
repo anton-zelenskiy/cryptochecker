@@ -6,6 +6,7 @@ from project.api.kucoin import KucoinMarketAPI
 from project.currencies.structures import Coin, Ratio, VolatilityValue
 from project import constants
 from project.core.redis import SettingStorage
+from telegram.constants import PARSEMODE_HTML
 
 setting_storage = SettingStorage()
 
@@ -47,7 +48,7 @@ def send_currency_prices():
             text=Coin.display(
                 user_currency_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
             ),
-            parse_mode="HTML",
+            parse_mode=PARSEMODE_HTML,
         )
 
     return currency_prices
@@ -91,7 +92,7 @@ def check_volatility(minutes: int):
                         minutes_window=minutes,
                         percentage=constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT,
                     ),
-                    parse_mode="HTML",
+                    parse_mode=PARSEMODE_HTML,
                 )
 
 
@@ -184,7 +185,7 @@ def check_candles(candles_count=None, threshold=None):
             tg_bot.send_message(
                 chat_id=int(chat_id),
                 text=message,
-                parse_mode="HTML",
+                parse_mode=PARSEMODE_HTML,
             )
 
 

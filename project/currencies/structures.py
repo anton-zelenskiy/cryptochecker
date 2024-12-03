@@ -70,8 +70,8 @@ class VolatilityValue:
         return VolatilityValue(
             ratio=ratio,
             volatility=round(abs(volatility), 1),
-            x1=round(x1, 3),
-            x2=round(x2, 3),
+            x1=round(x1, constants.PRECISE),
+            x2=round(x2, constants.PRECISE),
         )
 
     def lower_border(self, percent_change: float) -> float:
