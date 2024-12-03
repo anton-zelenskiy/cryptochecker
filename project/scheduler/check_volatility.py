@@ -4,13 +4,14 @@ import structlog
 from project.api.coingecko import (
     CoingeckoMarketAPI,
 )
+from project.api.kucoin import KucoinMarketAPI
 from project.currencies.structures import Coin, Ratio, VolatilityValue
 from project import constants
 from project.core.redis import SettingStorage
 
 setting_storage = SettingStorage()
 
-market_api = CoingeckoMarketAPI()
+market_api = KucoinMarketAPI()
 
 logger = structlog.get_logger(__name__)
 
