@@ -1,8 +1,8 @@
 import os
-import logging
 
 
 TELEGRAM_API_TOKEN = os.getenv('TELEGRAM_API_TOKEN', '')
+ALPHAVANTAGE_API_KEY = os.getenv('ALPHAVANTAGE_API_KEY', '')
 
 LOGGING_CONFIG = {
     'version': 1,
@@ -54,6 +54,3 @@ CELERY_RESULT_BACKEND = os.environ.get(
     'redis://redis:6379/1'
 )
 CELERY_TIMEZONE = 'Asia/Tomsk'
-
-
-ALPHAVANTAGE_API_KEY = '7LWBNDGBH88CCQPG'

@@ -1,4 +1,4 @@
-import logging
+import structlog
 from celery import shared_task
 
 from .check_volatility import (
@@ -7,7 +7,7 @@ from .check_volatility import (
     check_candles,
 )
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @shared_task(queue='default')

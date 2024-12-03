@@ -5,7 +5,6 @@ from queue import Queue
 from scheduler.check_volatility import (
     default_currency_codes,
 )
-from project.core.redis import get_user_currencies
 from telegram import Bot, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (
     CallbackContext,
@@ -17,20 +16,18 @@ from telegram.ext import (
     MessageHandler,
 )
 
-from project import settings
 from project import constants
 from project.currencies.structures import Coin
 from project.api.coingecko import (
-    get_currency_prices,
-    is_currency_code_exists,
+    CoingeckoMarketAPI
 )
-from project.core.redis import get_redis, SettingStorage
+from project.core.redis import SettingStorage
 from project.currencies.structures import AppMode
 from project.utils import error_handler
 
-redis = get_redis()
-
 setting_storage = SettingStorage()
+
+market_api = CoingeckoMarketAPI()
 
 logger = structlog.get_logger(__name__)
 
@@ -289,8 +286,7 @@ def handle_set_volatility_threshold_value(update: Update, context: CallbackConte
         return SettingState.HANDLE_SET_VOLATILITY_THRESHOLD
 
     user_id = update.message.from_user.id
-
-    redis.set(f'volatility:user:{user_id}:threshold', value)
+    setting_storage.set_volatility_threshold(user_id, value)
 
     update.message.reply_text('Volatility threshold updated successfully')
 
@@ -326,14 +322,12 @@ def list_currencies(update: Update, context: CallbackContext) -> int:
 
     user_id = update.message.from_user.id
 
-    user_currencies = redis.smembers(
-        f'volatility:user:{user_id}:currencies'
-    )
+    user_currencies = setting_storage.get_user_currencies(user_id)
     user_currencies = list(user_currencies)
 
     chunks = [
-        user_currencies[x:x + 3]
-        for x in range(0, len(user_currencies), 3)
+        user_currencies[x:x + 5]
+        for x in range(0, len(user_currencies), 5)
     ]
 
     update.message.reply_text(
@@ -358,16 +352,13 @@ def add_currency_command(update: Update, context: CallbackContext) -> int:
 def add_currency_value(update: Update, context: CallbackContext) -> int:
     currency_code = str(update.message.text).lower()
 
-    if not is_currency_code_exists(currency_code):
+    if not market_api.is_currency_code_exists(currency_code):
         update.message.reply_text('invalid currency, try again:')
         return CurrencyState.ADD_CURRENCY
 
     user_id = update.message.from_user.id
 
-    redis.sadd(
-        f'volatility:user:{user_id}:currencies',
-        currency_code
-    )
+    setting_storage.watch_coin(user_id, currency_code)
     update.message.reply_text('Currency added successfully')
 
     return ConversationHandler.END
@@ -384,16 +375,13 @@ def del_currency_command(update: Update, context: CallbackContext) -> int:
 def del_currency_value(update: Update, context: CallbackContext) -> int:
     currency_code = str(update.message.text).lower()
 
-    if not is_currency_code_exists(currency_code):
+    if not market_api.is_currency_code_exists(currency_code):
         update.message.reply_text('invalid currency, try again:')
         return CurrencyState.DEL_CURRENCY.value
 
     user_id = update.message.from_user.id
 
-    redis.srem(
-        f'volatility:user:{user_id}:currencies',
-        currency_code
-    )
+    setting_storage.unwatch_coin(user_id, currency_code)
     update.message.reply_text('Currency deleted successfully')
 
     return ConversationHandler.END
@@ -414,10 +402,10 @@ def cancel(update: Update, context: CallbackContext) -> int:
 def currency_price(update: Update, context: CallbackContext) -> None:
     currency_code = str(update.message.text).lower()
 
-    if not is_currency_code_exists(currency_code):
+    if not market_api.is_currency_code_exists(currency_code):
         update.message.reply_text('unknown command')
 
-    coin_prices = get_currency_prices(currency_codes=[currency_code])
+    coin_prices = market_api.get_currency_prices(currency_codes=[currency_code])
 
     update.message.reply_text(
         Coin.display(coin_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),
@@ -429,10 +417,10 @@ def currency_price(update: Update, context: CallbackContext) -> None:
 def info(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
 
-    user_currencies = get_user_currencies(user_id)
+    user_currencies = setting_storage.get_user_currencies(user_id)
     currency_codes = default_currency_codes | user_currencies
 
-    coin_prices = get_currency_prices(currency_codes=currency_codes)
+    coin_prices = market_api.get_currency_prices(currency_codes=currency_codes)
 
     update.message.reply_text(
         Coin.display(coin_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),

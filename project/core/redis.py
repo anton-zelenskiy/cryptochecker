@@ -28,16 +28,20 @@ class SettingStorage:
 
         return chat_ids
 
-    def get_user_currencies(self, chat_id: str | int):
+    def get_all_user_currencies(self, chat_ids: Iterable[str]):
+        result = {}
+        for chat_id in chat_ids:
+            result.update({chat_id: self.get_user_currencies(chat_id)})
+        return result
+
+    def get_user_currencies(self, chat_id: str | int) -> set[str]:
         currencies = self.redis.smembers(f"volatility:user:{chat_id}:currencies") or set()
 
         return {i.lower() for i in currencies}
 
 
-    def get_volatility_threshold(self, chat_id: str | int):
-        redis = get_redis()
-
-        value = redis.get(f"volatility:user:{chat_id}:threshold") or constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
+    def get_volatility_threshold(self, chat_id: str | int) -> float:
+        value = self.redis.get(f"volatility:user:{chat_id}:threshold") or constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
 
         try:
             volatility_threshold = float(value)
@@ -45,6 +49,9 @@ class SettingStorage:
             volatility_threshold = constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
 
         return volatility_threshold
+
+    def set_volatility_threshold(self, user_id: str | int, value: float) -> None:
+        self.redis.set(f'volatility:user:{user_id}:threshold', value)
 
 
     def get_app_mode(self, chat_id: str | int) -> AppMode:
@@ -67,40 +74,14 @@ class SettingStorage:
 
         return not is_enabled
 
+    def watch_coin(self, user_id: str | int, coin: str) -> None:
+        self.redis.sadd(
+            f'volatility:user:{user_id}:currencies',
+            coin
+        )
 
-def get_chat_ids() -> Iterable[str]:
-    redis = get_redis()
-    chat_ids = redis.smembers(constants.CACHE_KEY_CHATS)
-
-    if not chat_ids:
-        return []
-
-    return chat_ids
-
-
-def get_all_user_currencies(chat_ids: Iterable[str]):
-    result = {}
-    for chat_id in chat_ids:
-        result.update({chat_id: get_user_currencies(chat_id)})
-    return result
-
-
-def get_user_currencies(chat_id: str | int):
-    redis = get_redis()
-
-    currencies = redis.smembers(f"volatility:user:{chat_id}:currencies") or set()
-
-    return {i.lower() for i in currencies}
-
-
-def get_volatility_threshold(chat_id: str):
-    redis = get_redis()
-
-    value = redis.get(f"volatility:user:{chat_id}:threshold") or constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
-
-    try:
-        volatility_threshold = float(value)
-    except TypeError:
-        volatility_threshold = constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
-
-    return volatility_threshold
+    def unwatch_coin(self, user_id: str | int, coin: str) -> None:
+        self.redis.srem(
+            f'volatility:user:{user_id}:currencies',
+            coin
+        )

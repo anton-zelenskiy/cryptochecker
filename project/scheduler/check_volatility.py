@@ -1,19 +1,18 @@
 import itertools
-import logging
-from typing import Iterable
+import structlog
 
-from project import settings
 from project.api.coingecko import (
-    get_currency_code_id_map,
-    get_currency_prices,
-    get_daily_currency_history,
-    get_ohlc,
+    CoingeckoMarketAPI,
 )
-from project.core.redis import get_chat_ids, get_all_user_currencies, get_volatility_threshold
 from project.currencies.structures import Coin, Ratio, VolatilityValue
 from project import constants
+from project.core.redis import SettingStorage
 
-logger = logging.getLogger(__name__)
+setting_storage = SettingStorage()
+
+market_api = CoingeckoMarketAPI()
+
+logger = structlog.get_logger(__name__)
 
 default_currency_codes = {"btc", "eth"}
 
@@ -22,11 +21,11 @@ def send_currency_prices():
     """Notify subscribers about currency prices every hour."""
     from project.app import tg_bot
 
-    chat_ids = get_chat_ids()
+    chat_ids = setting_storage.get_chat_ids()
     if not chat_ids:
         return
 
-    all_user_currencies = get_all_user_currencies(chat_ids)
+    all_user_currencies = setting_storage.get_all_user_currencies(chat_ids)
 
     user_currency_codes = set()
     for curr in all_user_currencies.values():
@@ -34,7 +33,7 @@ def send_currency_prices():
 
     all_currency_codes = default_currency_codes | user_currency_codes
 
-    currency_prices = get_currency_prices(currency_codes=all_currency_codes)
+    currency_prices = market_api.get_currency_prices(currency_codes=all_currency_codes)
 
     for chat_id in chat_ids:
         user_currencies = all_user_currencies.get(chat_id, [])
@@ -46,7 +45,9 @@ def send_currency_prices():
 
         tg_bot.send_message(
             chat_id=int(chat_id),
-            text=Coin.display(user_currency_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),
+            text=Coin.display(
+                user_currency_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
+            ),
             parse_mode="HTML",
         )
 
@@ -57,11 +58,11 @@ def check_volatility(minutes: int):
     """Notify subscribers about currency volatility."""
     from project.app import tg_bot
 
-    chat_ids = get_chat_ids()
+    chat_ids = setting_storage.get_chat_ids()
     if not chat_ids:
         return
 
-    all_user_currencies = get_all_user_currencies(chat_ids)
+    all_user_currencies = setting_storage.get_all_user_currencies(chat_ids)
 
     user_currency_codes = set()
     for curr in all_user_currencies.values():
@@ -75,7 +76,7 @@ def check_volatility(minutes: int):
 
     for chat_id in chat_ids:
         user_currencies = all_user_currencies.get(chat_id, set())
-        volatility_threshold = get_volatility_threshold(chat_id)
+        volatility_threshold = setting_storage.get_volatility_threshold(chat_id)
 
         for currency in default_currency_codes | user_currencies:
             volatility = volatility_data_by_currency.get(currency)
@@ -89,29 +90,23 @@ def check_volatility(minutes: int):
                     text=volatility.display(
                         currency=currency,
                         minutes_window=minutes,
-                        percentage=constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT
+                        percentage=constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT,
                     ),
                     parse_mode="HTML",
                 )
 
 
 def get_volatility_data_for_currencies(
-    currency_codes: set[str],
-    minutes: int
+    currency_codes: set[str], minutes: int
 ) -> dict[str, VolatilityValue]:
     result = {}
 
-    currency_code_map = get_currency_code_id_map()
-
     for currency_code in currency_codes:
-        currency_id = currency_code_map.get(currency_code)
-        if not currency_id:
-            continue
-
         result.update(
             {
                 currency_code: get_volatility_data(
-                    currency_id=currency_id, minutes=minutes
+                    currency_code=currency_code,
+                    minutes=minutes
                 )
             }
         )
@@ -119,10 +114,8 @@ def get_volatility_data_for_currencies(
     return result
 
 
-def get_volatility_data(currency_id: str, minutes: int) -> VolatilityValue:
-    prices_data = get_daily_currency_history(
-        currency_id=currency_id,
-    )
+def get_volatility_data(currency_code: str, minutes: int) -> VolatilityValue:
+    prices_data = market_api.get_history_price(currency_code)
 
     sorted_prices_data = sorted(
         prices_data, key=lambda x: x.unix_timestamp, reverse=True
@@ -145,11 +138,11 @@ def check_candles(candles_count=None, threshold=None):
     candles_count = candles_count or 4
     threshold = threshold or 0.5
 
-    chat_ids = get_chat_ids()
+    chat_ids = setting_storage.get_chat_ids()
     if not chat_ids:
         return
 
-    all_user_currencies = get_all_user_currencies(chat_ids)
+    all_user_currencies = setting_storage.get_all_user_currencies(chat_ids)
 
     user_currency_codes = set()
     for curr in all_user_currencies.values():
@@ -202,7 +195,7 @@ def get_candles_data_for_currencies(currency_codes: set[str]):
     for currency_code in currency_codes:
         result.update(
             {
-                currency_code: get_ohlc(
+                currency_code: market_api.get_ohlc(
                     currency_code=currency_code,
                 )
             }

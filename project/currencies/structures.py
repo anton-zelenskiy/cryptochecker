@@ -99,7 +99,8 @@ class HistoryData:
 @dataclass(frozen=True)
 class CandleData:
     datetime: datetime.datetime
-    open: int
-    high: int
-    low: int
-    close: int
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float = 0
