@@ -1,9 +1,12 @@
 import functools
-from typing import Callable, Any
+from typing import Callable, Any, Type, TypeVar
 import structlog
 import operator
 import datetime
 from project.core.redis import get_redis
+import time
+
+Func = TypeVar('Func', bound=Callable[..., Any])
 
 logger = structlog.get_logger(__name__)
 
@@ -16,6 +19,40 @@ def error_handler(func: Callable) -> Callable:
         except Exception as e:
             logger.error(f'Error occured: {str(e)}')
     return wrapper
+
+
+def retry(
+    exception_to_check: Type[Exception] | tuple[Type[Exception], ...],
+    exception_matches: list[str] | None = None,
+    tries: int = 4,
+    delay: int = 3,
+    backoff: int = 2,
+) -> Callable[[Func], Func]:
+    def deco_retry(func: Func) -> Func:
+        @functools.wraps(func)
+        def f_retry(*args: Any, **kwargs: Any) -> Func:
+            mtries, mdelay = tries, delay
+            while mtries > 1:
+                try:
+                    return func(*args, **kwargs)
+                except exception_to_check as ex:
+                    if exception_matches:
+                        if not any(i in str(ex) for i in exception_matches):
+                            raise ex
+
+                    logger.info(
+                        f'{ex.__class__.__name__}: {ex} raised in {func.__name__}.'
+                        f' Retrying in {mdelay} seconds.'
+                    )
+
+                    time.sleep(mdelay)
+                    mtries -= 1
+                    mdelay *= backoff
+            return func(*args, **kwargs)
+
+        return f_retry # type: ignore
+
+    return deco_retry
 
 
 class RequestCounter:

@@ -5,7 +5,7 @@ import structlog
 
 from project.currencies.structures import Coin, CandleData, HistoryData
 from project.api.base import CoinMarketAPI
-from project.utils import request_counter
+from project.utils import request_counter, retry
 
 logger = structlog.get_logger(__name__)
 
@@ -15,6 +15,7 @@ class KucoinMarketAPI(CoinMarketAPI):
         self._client = Market(url='https://api.kucoin.com')
 
     @request_counter
+    @retry(exception_to_check=Exception, exception_matches=['429'], delay=30)
     def get_currency_prices(self, currency_codes: Iterable[str]) -> list[Coin]:
         currency_prices: dict[str, str] = self._client.get_fiat_price(
             base='USD',
@@ -32,6 +33,7 @@ class KucoinMarketAPI(CoinMarketAPI):
         ]
     
     @request_counter
+    @retry(exception_to_check=Exception, exception_matches=['429'], delay=30)
     def get_history_price(self, currency_code: str) -> list[HistoryData]:
         data = self.get_ohlc(currency_code=currency_code)
         
@@ -46,21 +48,22 @@ class KucoinMarketAPI(CoinMarketAPI):
         ]
     
     @request_counter
+    @retry(exception_to_check=Exception, exception_matches=['429'], delay=30)
     def get_ohlc(self, currency_code: str) -> list[CandleData]:
         now = datetime.datetime.now()
         
         now_seconds = int(now.timestamp())
-        hour_ago_seconds = int((now - datetime.timedelta(hours=1)).timestamp())
+        prev_seconds = int((now - datetime.timedelta(hours=3)).timestamp())
 
         data: list[list] = self._client.get_kline(
             symbol=f'{currency_code.upper()}-USDT',
             kline_type='5min',
-            startAt=hour_ago_seconds,
+            startAt=prev_seconds,
             endAt=now_seconds,
         )  # type: ignore
-        
+
         logger.info('got ohlc data', data=data)
-        
+
         return [
             CandleData(
                 datetime=datetime.datetime.fromtimestamp(int(ts)),
