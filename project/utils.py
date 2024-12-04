@@ -1,8 +1,9 @@
 import functools
 from typing import Callable, Any
 import structlog
-from collections import Counter
+import operator
 import datetime
+from project.core.redis import get_redis
 
 logger = structlog.get_logger(__name__)
 
@@ -18,27 +19,28 @@ def error_handler(func: Callable) -> Callable:
 
 
 class RequestCounter:
+    KEY_RPS = 'stats:rps'
+    
     def __init__(self) -> None:
-        self._collector = []
+        self._redis = get_redis()
         
     def collect(self):
         ts = datetime.datetime.now().replace(
             second=0,
             microsecond=0
         )
-        self._collector.append(ts)
+
+        self._redis.hincrby(
+            self.KEY_RPS,
+            ts.isoformat(),
+            1
+        )
 
     def stats(self) -> dict[str, Any]:
-        counter = Counter(self._collector)
+        data = self._redis.hgetall(self.KEY_RPS) or {}
         
-        if not counter:
-            return {
-                'top': 0,
-                'avg': 0,
-            }
-        
-        top_rpm = counter.most_common(1)[0]
-        avg_rpm = counter.total() // len(list(counter))
+        top_rpm = max(data.items(), key=operator.itemgetter(1))
+        avg_rpm = sum([int(i) for i in data.values()]) // len(data)
         
         return {
             'top': (top_rpm[0], top_rpm[1]),
