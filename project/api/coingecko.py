@@ -124,7 +124,7 @@ class CoingeckoMarketAPI(CoinMarketAPI):
 
         return [
             Coin(
-                currency_code=currency_id_code_map.get(currency_id, currency_id),
+                currency_code=currency_id_code_map.get(item['id'], item['id']),
                 price=item['current_price'],
                 ath=item['ath'],
                 atl=item['atl'],
