@@ -27,6 +27,8 @@ class Ratio(Enum):
 class Coin:
     currency_code: str
     price: float
+    ath: float = 0
+    atl: float = 0
 
     @property
     def price_display(self) -> float:
@@ -46,7 +48,8 @@ class Coin:
         for coin in coins:
             rows.append(
                 f"<i>{coin.currency_code.upper()}</i>: <b>{coin.price_display}$</b> "
-                f"(+-{percentage}%: {coin.lower_border(percentage)} - {coin.upper_border(percentage)})"
+                f"(+-{percentage}%: {coin.lower_border(percentage)} - {coin.upper_border(percentage)}); "
+                f"ATH: {coin.ath}, ATL: {coin.atl}"
             )
 
         return '\n'.join(rows)

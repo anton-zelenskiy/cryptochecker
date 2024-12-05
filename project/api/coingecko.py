@@ -104,3 +104,30 @@ class CoingeckoMarketAPI(CoinMarketAPI):
             )
             for ts, open_, high_, low_, close_ in data
         ]
+
+    @request_counter
+    def get_market_data(self, currency_codes: list[str]) -> list[Coin]:
+        currency_code_id_map = self.get_currency_code_id_map()
+        currency_ids = [
+            currency_code_id_map.get(code)
+            for code in currency_codes
+        ]
+
+        data = self._client.get_coins_markets(
+            ids=currency_ids,
+            vs_currency='usd'
+        )
+
+        logger.info('got market data', data=data)
+
+        currency_id_code_map = self.get_currency_id_code_map()
+
+        return [
+            Coin(
+                currency_code=currency_id_code_map.get(currency_id, currency_id),
+                price=item['current_price'],
+                ath=item['ath'],
+                atl=item['atl'],
+            )
+            for item in data
+        ]

@@ -401,7 +401,7 @@ def currency_price(update: Update, context: CallbackContext) -> None:
     if not market_api.is_currency_code_exists(currency_code):
         update.message.reply_text('unknown command')
 
-    coin_prices = market_api.get_currency_prices(currency_codes=[currency_code])
+    coin_prices = market_api.get_market_data(currency_codes=[currency_code])
 
     update.message.reply_text(
         Coin.display(coin_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),
@@ -416,7 +416,7 @@ def info(update: Update, context: CallbackContext) -> None:
     user_currencies = setting_storage.get_user_currencies(user_id)
     currency_codes = default_currency_codes | user_currencies
 
-    coin_prices = market_api.get_currency_prices(currency_codes=currency_codes)
+    coin_prices = market_api.get_market_data(currency_codes=currency_codes)
 
     update.message.reply_text(
         Coin.display(coin_prices, constants.DEFAULT_VOLATILITY_THRESHOLD_PERCENT),
