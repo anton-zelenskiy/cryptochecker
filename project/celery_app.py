@@ -33,10 +33,10 @@ CELERY_CONFIG = {
         #     'schedule': crontab(hour='*/2', minute=1),
         #     'args': (120,)
         # },
-        'task_send_currency_prices': {
-            'task': 'project.scheduler.tasks.task_send_currency_prices',
-            'schedule': crontab(hour='*/4', minute=0)
-        },
+        # 'task_send_currency_prices': {
+        #     'task': 'project.scheduler.tasks.task_send_currency_prices',
+        #     'schedule': crontab(hour='*/4', minute=0)
+        # },
         'task_check_candles': {
             'task': 'project.scheduler.tasks.task_check_candles',
             'schedule': crontab(minute=5)
