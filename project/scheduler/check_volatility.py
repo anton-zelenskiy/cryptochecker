@@ -127,7 +127,7 @@ def get_volatility_data(currency_code: str, minutes: int) -> VolatilityValue:
 
     try:
         minutes_ago = sorted_prices_data[index].value
-    except KeyError:
+    except KeyError as e:
         logger.error(
             'error getting historical price',
             currency_code=currency_code,
