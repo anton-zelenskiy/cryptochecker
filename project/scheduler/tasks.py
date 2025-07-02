@@ -21,5 +21,5 @@ def task_send_currency_prices():
 
 
 @shared_task(queue='default')
-def task_check_candles():
-    check_candles()
+def task_check_candles(candles_count: int = 4, threshold: float = 1.0):
+    check_candles(candles_count, threshold)
