@@ -1,10 +1,11 @@
-from kucoin.client import Market
-from typing import Iterable
 import datetime
-import structlog
+from collections.abc import Iterable
 
-from project.currencies.structures import Coin, CandleData, HistoryData
+import structlog
+from kucoin.client import Market
+
 from project.api.base import CoinMarketAPI
+from project.currencies.structures import CandleData, Coin, HistoryData
 from project.utils import request_counter, retry
 
 logger = structlog.get_logger(__name__)
@@ -21,7 +22,7 @@ class KucoinMarketAPI(CoinMarketAPI):
             base='USD',
             currencies=','.join(c.upper() for c in currency_codes)
         ) # type: ignore
-        
+
         logger.info('got currency prices', data=currency_prices)
 
         return [
@@ -31,12 +32,12 @@ class KucoinMarketAPI(CoinMarketAPI):
             )
             for code, price in currency_prices.items()
         ]
-    
+
     @request_counter
     @retry(exception_to_check=Exception, exception_matches=['429'], delay=30)
     def get_history_price(self, currency_code: str) -> list[HistoryData]:
         data = self.get_ohlc(currency_code=currency_code)
-        
+
         logger.info('got history price', data=data)
 
         return [
@@ -46,12 +47,12 @@ class KucoinMarketAPI(CoinMarketAPI):
             )
             for item in data
         ]
-    
+
     @request_counter
     @retry(exception_to_check=Exception, exception_matches=['429'], delay=30)
     def get_ohlc(self, currency_code: str) -> list[CandleData]:
         now = datetime.datetime.now()
-        
+
         now_seconds = int(now.timestamp())
         prev_seconds = int((now - datetime.timedelta(hours=3)).timestamp())
 
@@ -66,7 +67,7 @@ class KucoinMarketAPI(CoinMarketAPI):
 
         return [
             CandleData(
-                datetime=datetime.datetime.fromtimestamp(int(ts)),
+                datetime=datetime.datetime.fromtimestamp(int(ts), tz=datetime.timezone.utc),
                 open=float(open_),
                 close=float(close_),
                 high=float(high_),

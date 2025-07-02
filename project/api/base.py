@@ -12,6 +12,6 @@ class CoinMarketAPI:
 
     def get_ohlc(self, currency_code: str) -> list[CandleData]:
         ...
-        
+
     def get_market_data(self, currency_code: str) -> dict:
         raise NotImplementedError()

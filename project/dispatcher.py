@@ -1,11 +1,19 @@
 import enum
-import structlog
 from queue import Queue
 
+import structlog
 from scheduler.check_volatility import (
     default_currency_codes,
 )
-from telegram import Bot, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import (
+    Bot,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update,
+)
+from telegram.constants import PARSEMODE_HTML
 from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
@@ -15,15 +23,11 @@ from telegram.ext import (
     Filters,
     MessageHandler,
 )
-from telegram.constants import PARSEMODE_HTML
 
 from project import constants
-from project.currencies.structures import Coin
-from project.api.coingecko import (
-    CoingeckoMarketAPI
-)
+from project.api.coingecko import CoingeckoMarketAPI
 from project.core.redis import SettingStorage
-from project.currencies.structures import AppMode
+from project.currencies.structures import AppMode, Coin
 from project.utils import error_handler, rpm_counter
 
 setting_storage = SettingStorage()

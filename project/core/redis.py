@@ -55,7 +55,7 @@ class SettingStorage:
 
 
     def get_app_mode(self, chat_id: str | int) -> AppMode:
-        value = self.redis.get(f'user:{chat_id}:app_mode') or AppMode.CHECK_SELECTED_COINS
+        value = self.redis.get(f'user:{chat_id}:app_mode') or AppMode.CHECK_SELECTED_COINS.value
         return AppMode(value)
 
     def set_app_mode(self, chat_id: str | int, value: AppMode) -> None:

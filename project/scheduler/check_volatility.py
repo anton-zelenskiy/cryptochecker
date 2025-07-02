@@ -1,12 +1,13 @@
 import itertools
-import structlog
 
-from project.api.coingecko import CoingeckoMarketAPI
-from project.api.kucoin import KucoinMarketAPI
-from project.currencies.structures import Coin, Ratio, VolatilityValue
-from project import constants
-from project.core.redis import SettingStorage
+import structlog
 from telegram.constants import PARSEMODE_HTML
+
+from project import constants
+from project.api.kucoin import KucoinMarketAPI
+from project.constants import ICON_WARNING
+from project.core.redis import SettingStorage
+from project.currencies.structures import Coin, Ratio, VolatilityValue
 
 setting_storage = SettingStorage()
 
@@ -132,11 +133,8 @@ def get_volatility_data(currency_code: str, minutes: int) -> VolatilityValue:
     return VolatilityValue.calculate(minutes_ago, latest_value)
 
 
-def check_candles(candles_count=None, threshold=None):
+def check_candles(candles_count: int | None = 4, threshold: float | None = 1):
     from project.app import tg_bot
-
-    candles_count = candles_count or 4
-    threshold = threshold or 0.5
 
     chat_ids = setting_storage.get_chat_ids()
     if not chat_ids:
@@ -168,6 +166,8 @@ def check_candles(candles_count=None, threshold=None):
 
             is_downtrend = all(x < y for x, y in itertools.pairwise(closes))
             is_uptrend = all(x > y for x, y in itertools.pairwise(closes))
+            is_huge_volume = any(item.is_huge_volume for item in latest_values)
+            max_volume = max(item.volume_usdt for item in latest_values)
 
             volatility = VolatilityValue.calculate(closes[0], closes[-1])
             ratio = Ratio.get_ratio_display(volatility.ratio)
@@ -178,10 +178,15 @@ def check_candles(candles_count=None, threshold=None):
             if not (is_uptrend or is_downtrend):
                 continue
 
-            message = (
-                f"{currency}: {ratio} ({candles_count} candles), "
-                f"{volatility.volatility}%"
-            )
+            if is_huge_volume:
+                message = (
+                    f"{currency}: {ratio} ({volatility.volatility}%, {candles_count} candles). "
+                    f"{ICON_WARNING} vol: {max_volume} USDT"
+                )
+            else:
+                message = (
+                    f"{currency}: {ratio} ({volatility.volatility}%, {candles_count} candles). "
+                )
             tg_bot.send_message(
                 chat_id=int(chat_id),
                 text=message,

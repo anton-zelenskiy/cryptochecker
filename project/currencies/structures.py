@@ -1,6 +1,6 @@
+import datetime
 from dataclasses import dataclass
 from enum import Enum, IntEnum
-import datetime
 
 from project import constants
 
@@ -16,7 +16,7 @@ class Ratio(Enum):
     BALANCE = 'balance'
 
     @classmethod
-    def get_ratio_display(cls, ratio: 'Ratio'):
+    def get_ratio_display(cls, ratio: 'Ratio') -> str:
         if ratio == cls.DOWNSIDE:
             return constants.ICON_ARROW_DOWN
 
@@ -108,3 +108,11 @@ class CandleData:
     close: float
     volume: float = 0
     turnover: float = 0
+
+    @property
+    def volume_usdt(self) -> float:
+        return self.volume * self.close
+
+    @property
+    def is_huge_volume(self) -> bool:
+        return self.volume_usdt > 500000
