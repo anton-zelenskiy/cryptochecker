@@ -15,3 +15,6 @@ class CoinMarketAPI:
 
     def get_market_data(self, currency_code: str) -> dict:
         raise NotImplementedError()
+
+    def get_favorite_coins(self) -> list[str]:
+        raise NotImplementedError()

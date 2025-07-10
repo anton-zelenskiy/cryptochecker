@@ -77,3 +77,6 @@ class KucoinMarketAPI(CoinMarketAPI):
             )
             for ts, open_, close_, high_, low_, volume_, turnover_ in data
         ]
+
+    def get_favorite_coins(self) -> list[str]:
+        raise NotImplementedError()
