@@ -80,3 +80,11 @@ class KucoinMarketAPI(CoinMarketAPI):
 
     def get_favorite_coins(self) -> list[str]:
         raise NotImplementedError()
+
+    def is_currency_code_exists(self, currency_code: str) -> bool:
+        return len(self.get_currency_prices([currency_code])) > 0
+
+    @request_counter
+    @retry(exception_to_check=Exception, exception_matches=['429'], delay=30)
+    def get_market_data(self, currency_codes: list[str]) -> list[Coin]:
+        return self.get_currency_prices(currency_codes)

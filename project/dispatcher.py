@@ -25,14 +25,14 @@ from telegram.ext import (
 )
 
 from project import constants
-from project.api.coingecko import CoingeckoMarketAPI
+from project.api.kucoin import KucoinMarketAPI
 from project.core.redis import SettingStorage
 from project.currencies.structures import AppMode, Coin
 from project.utils import error_handler, rpm_counter
 
 setting_storage = SettingStorage()
 
-market_api = CoingeckoMarketAPI()
+market_api = KucoinMarketAPI()
 
 logger = structlog.get_logger(__name__)
 
