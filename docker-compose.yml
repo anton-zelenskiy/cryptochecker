@@ -13,6 +13,7 @@ services:
     volumes:
       - ./project:/home/project
     command: gunicorn -w 1 --preload -b :5001 app:app
+    restart: on-failure
   redis:
     image: redis:latest
     networks:
@@ -31,6 +32,7 @@ services:
       - redis
     networks:
       - cryptochecker
+    restart: on-failure
   beat:
     build: .
     image: app:latest
@@ -41,6 +43,7 @@ services:
       - ./project:/home/project
     networks:
       - cryptochecker
+    restart: on-failure
 
 networks:
   cryptochecker:
