@@ -1,9 +1,9 @@
-name: Master - Testing
+# name: Master - Testing
 
-on:
-  push:
-    branches:
-      - 'master'
+# on:
+#   push:
+#     branches:
+#       - 'master'
 
 # jobs:
 #   redeploy:
