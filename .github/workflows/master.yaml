@@ -5,12 +5,12 @@ on:
     branches:
       - 'master'
 
-jobs:
-  redeploy:
-    name: Redeploy webhook call
-    runs-on: ubuntu-18.04
-    steps:
-      - name: Deploy docker container webhook
-        uses: joelwmale/webhook-action@master
-        env:
-          WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL  }}
+# jobs:
+#   redeploy:
+#     name: Redeploy webhook call
+#     runs-on: ubuntu-18.04
+#     steps:
+#       - name: Deploy docker container webhook
+#         uses: joelwmale/webhook-action@master
+#         env:
+#           WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL  }}
