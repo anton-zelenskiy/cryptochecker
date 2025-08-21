@@ -1,3 +1,4 @@
+from calendar import c
 import datetime
 from collections.abc import Iterable
 
@@ -24,6 +25,9 @@ class KucoinMarketAPI(CoinMarketAPI):
         ) # type: ignore
 
         logger.info('got currency prices', data=currency_prices)
+
+        if 'data' in currency_prices and not currency_prices['data']:
+            return []
 
         return [
             Coin(

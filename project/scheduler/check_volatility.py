@@ -140,7 +140,7 @@ def get_volatility_data(currency_code: str, minutes: int) -> VolatilityValue:
     return VolatilityValue.calculate(minutes_ago, latest_value)
 
 
-def check_candles(candles_count: int | None = 4, threshold: float | None = 1):
+def check_candles(candles_count: int = 4, threshold: float = 1):
     from project.app import tg_bot
 
     chat_ids = setting_storage.get_chat_ids()
