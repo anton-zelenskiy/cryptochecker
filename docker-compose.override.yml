@@ -1,0 +1,7 @@
+services:
+  app:
+    restart: no
+  worker:
+    restart: no
+  beat:
+    restart: no

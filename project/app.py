@@ -40,7 +40,12 @@ def index():
     return 'Hi there!'
 
 
-@app.route('/test_sentry/', methods=['GET'])
+@app.route(f'{WEBHOOK_URL_PATH}health/', methods=['GET', 'HEAD'])
+def health():
+    return 'OK'
+
+
+@app.route(f'{WEBHOOK_URL_PATH}test_sentry/', methods=['GET'])
 def test_sentry():
     var = 1 / 0
     return f"<p>Hello, World! {var}</p>"
@@ -62,6 +67,8 @@ def get_me():
 
 @app.route(f'{WEBHOOK_URL_PATH}set/', methods=['GET'])
 def set_webhook():
+    # with cert on prod
+    # no cert locally with ngrok
     res = tg_bot.set_webhook(
         url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}',
         certificate=open('certificate.pem', 'rb')
