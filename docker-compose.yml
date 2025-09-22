@@ -21,7 +21,7 @@ services:
   worker:
     build: .
     image: app:latest
-    command: celery -A project.app.celery worker -l info -Q default
+    command: celery -A project.app.celery worker -l info -Q default --concurrency=1
     env_file:
       - .env
     volumes:
