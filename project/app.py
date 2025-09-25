@@ -71,7 +71,7 @@ def set_webhook():
     # no cert locally with ngrok
     res = tg_bot.set_webhook(
         url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}',
-        certificate=open('certificate.pem', 'rb')
+        # certificate=open('certificate.pem', 'rb')
     )
     return f'{str(res)}'
 
