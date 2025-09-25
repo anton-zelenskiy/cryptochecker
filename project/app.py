@@ -67,8 +67,7 @@ def get_me():
 
 @app.route(f'{WEBHOOK_URL_PATH}set/', methods=['GET'])
 def set_webhook():
-    # with cert on prod
-    # no cert locally with ngrok
+    # no cert locally with ngrok, no cert if letsencrypt, with cert if self-signed cert
     res = tg_bot.set_webhook(
         url=f'{WEBHOOK_URL_BASE}{WEBHOOK_URL_PATH}',
         # certificate=open('certificate.pem', 'rb')
