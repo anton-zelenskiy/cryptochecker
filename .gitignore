@@ -7,3 +7,4 @@
 pyrightconfig.json
 .env
 .vscode
+docker-compose.override.yml
