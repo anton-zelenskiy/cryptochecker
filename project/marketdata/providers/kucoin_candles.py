@@ -3,53 +3,35 @@ from __future__ import annotations
 import datetime as dt
 
 import structlog
+import httpx
 
-from project.core.run_in_executor import run_in_executor
 from project.marketdata.dto import NormalizedCandle, NormalizedMarket
 from project.marketdata.providers.candles import CandleProvider
 from project.marketdata.timeframes import normalize_timeframe
-from project.api.kucoin import KucoinMarketAPI
 
 
 logger = structlog.get_logger(__name__)
+
+KUCOIN_CANDLES_URL = "https://api.kucoin.com/api/v1/market/candles"
+
+
+def _kucoin_type(timeframe: str) -> str:
+    tf = normalize_timeframe(timeframe).code
+    return {
+        "1m": "1min",
+        "5m": "5min",
+        "15m": "15min",
+        "1h": "1hour",
+        "4h": "4hour",
+        "1d": "1day",
+    }[tf]
 
 
 class KuCoinCandleProvider(CandleProvider):
     source = "kucoin"
 
     def __init__(self) -> None:
-        self._api = KucoinMarketAPI()
-
-    @run_in_executor
-    def _fetch_sync(
-        self,
-        market: NormalizedMarket,
-        timeframe: str,
-        start: dt.datetime,
-        end: dt.datetime,
-    ) -> list[NormalizedCandle]:
-        tf = normalize_timeframe(timeframe)
-        # current wrapper uses 5min only and 3h window; keep best-effort using get_ohlc
-        candles = self._api.get_ohlc(currency_code=market.base_asset.lower())
-        result: list[NormalizedCandle] = []
-        for c in candles:
-            t = c.datetime.astimezone(dt.timezone.utc)
-            if start <= t <= end:
-                result.append(
-                    NormalizedCandle(
-                        source=self.source,
-                        market=market,
-                        timeframe=tf.code,
-                        open_time_utc=t,
-                        open=float(c.open),
-                        high=float(c.high),
-                        low=float(c.low),
-                        close=float(c.close),
-                        volume_base=float(getattr(c, "volume", 0.0) or 0.0),
-                        volume_quote=float(getattr(c, "turnover", 0.0) or 0.0),
-                    )
-                )
-        return result
+        pass
 
     async def fetch_ohlcv(
         self,
@@ -62,9 +44,60 @@ class KuCoinCandleProvider(CandleProvider):
     ) -> list[NormalizedCandle]:
         if start.tzinfo is None or end.tzinfo is None:
             raise ValueError("start/end must be timezone-aware (UTC)")
-        candles = await self._fetch_sync(market, timeframe, start, end)
-        candles.sort(key=lambda c: c.open_time_utc)
+        tf_code = normalize_timeframe(timeframe).code
+
+        params = {
+            "symbol": market.pair,
+            "type": _kucoin_type(tf_code),
+            "startAt": int(start.timestamp()),
+            "endAt": int(end.timestamp()),
+        }
+
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            r = await client.get(KUCOIN_CANDLES_URL, params=params)
+            r.raise_for_status()
+            payload = r.json()
+
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(data, list):
+            return []
+
+        result: list[NormalizedCandle] = []
+        for item in data:
+            if not isinstance(item, list) or len(item) < 7:
+                continue
+            try:
+                ts_s = int(item[0])
+                open_ = float(item[1])
+                close_ = float(item[2])
+                high_ = float(item[3])
+                low_ = float(item[4])
+                volume_ = float(item[5])
+                turnover_ = float(item[6])
+            except Exception:
+                continue
+
+            t = dt.datetime.fromtimestamp(ts_s, tz=dt.timezone.utc)
+            if not (start <= t <= end):
+                continue
+
+            result.append(
+                NormalizedCandle(
+                    source=self.source,
+                    market=market,
+                    timeframe=tf_code,
+                    open_time_utc=t,
+                    open=open_,
+                    high=high_,
+                    low=low_,
+                    close=close_,
+                    volume_base=volume_,
+                    volume_quote=turnover_,
+                )
+            )
+
+        result.sort(key=lambda c: c.open_time_utc)
         if limit is not None:
-            candles = candles[-limit:]
-        return candles
+            result = result[-limit:]
+        return result
 

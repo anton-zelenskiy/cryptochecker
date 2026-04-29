@@ -16,7 +16,9 @@ from project.web.telegram_webapp import verify_telegram_init_data
 from project.repositories.users import TelegramUserRepository, UserTrackedAssetRepository
 from project.models import candles as _candles  # noqa: F401
 from project.models import catalog as _catalog  # noqa: F401
+from project.models import coin_metadata as _coin_metadata  # noqa: F401
 from project.models import indicators as _indicators  # noqa: F401
+from project.models import market_trades as _market_trades  # noqa: F401
 from project.models import paper_trading as _paper  # noqa: F401
 from project.models import users as _users  # noqa: F401
 from project.web.bot import build_bot
@@ -88,6 +90,7 @@ async def api_catalog(init_data: str = Query("", alias="initData")) -> list[dict
     return [
         {
             "id": c.coingecko_id,
+            "source": c.source,
             "symbol": c.symbol,
             "name": c.name,
             "rank": c.market_cap_rank,

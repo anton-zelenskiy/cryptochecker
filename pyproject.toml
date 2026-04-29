@@ -19,10 +19,7 @@ dependencies = [
   "structlog>=25.4.0",
   "ta>=0.11.0",
   "uvicorn[standard]>=0.35.0",
-  # Existing provider SDKs (kept for compatibility with current wrappers)
-  "kucoin-python>=1.0.25",
-  "pybit>=5.11.0",
-  "pycoingecko>=3.2.0",
+  "websockets>=15.0.0",
   "alembic>=1.18.4",
 ]
 

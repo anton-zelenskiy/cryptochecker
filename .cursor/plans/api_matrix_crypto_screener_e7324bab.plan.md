@@ -58,7 +58,7 @@ isProject: false
 ## Ограничения (уточнения)
 
 - **Только бесплатные API** — без платных тарифов CoinGecko Pro, Etherscan Pro и т.п. В плане заложены **ротация и fallback** между провайдерами + **агрессивный кэш** (Redis) и **дедупликация запросов**, чтобы укладываться в лимиты.
-- **PostgreSQL** — каноническое хранилище **истории свечей** и **пользовательских настроек** (watchlist, пороги волатильности, режимы, флаги уведомлений и т.п.). Сейчас часть настроек живёт в Redis через `SettingStorage` в [project/dispatcher.py](project/dispatcher.py) — в новой версии это переносится в PG.
+- **PostgreSQL** — каноническое хранилище **истории свечей** и **пользовательских настроек** (watchlist, пороги волатильности, режимы, флаги уведомлений и т.п.). В текущей версии источник истины — PG (`telegram_users`, `user_settings`, `user_tracked_assets`).
 - **Redis** — остаётся для **Celery broker/backend** и **краткоживущего кэша** (квоты внешних API, дедуп запросов), но не как основное хранилище настроек пользователя.
 - **Единый адаптер** — несколько внешних клиентов за интерфейсом с **одинаковым форматом ответа** (нормализованная свеча, нормализованный тикер/рынок).
 - **uv** — менеджер зависимостей и lock-файл вместо pip.
@@ -66,9 +66,9 @@ isProject: false
 - **FastAPI + aiogram**, **Celery сохранить** — основной процесс FastAPI (JSON API + health + отдача TWA статики/прокси), aiogram как async Telegram-бот (**только webhooks**), Celery worker для фоновых задач; **async HTTP** (`httpx`) для I/O к биржам.
 - **Python 3.14** — целевая версия рантайма; в контейнере использовать базовый образ Python 3.14.
 - **Попытаться отключить GIL (free-threaded Python)** если доступно в 3.14 и даёт выигрыш для CPU-bound частей (расчёт индикаторов/корреляций); если усложняет сборку/стабильность — оставить стандартный build и масштабировать воркеры Celery.
-- **Без backward compatibility** с текущим синхронным `python-telegram-bot` dispatcher из [project/dispatcher.py](project/dispatcher.py): миграция напрямую на aiogram.
+- **Legacy удалён**: Flask + `python-telegram-bot` dispatcher удалены из репозитория; бот работает через **aiogram webhooks внутри FastAPI**.
 
-Текущая база в репозитории: [project/api/kucoin.py](project/api/kucoin.py), [project/api/bybit.py](project/api/bybit.py), [project/api/coingecko.py](project/api/coingecko.py), [project/app.py](project/app.py) (Flask), Celery в [project/celery_app.py](project/celery_app.py).
+Текущая база в репозитории: FastAPI webapp в `project/web/main.py`, Celery в `project/celery_app.py`, адаптеры в `project/marketdata/*`. Legacy `project/app.py` (Flask) и `project/api/*` удалены.
 
 Также уже есть полезные утилиты/каркас в `project/core`, которые **переиспользуем** в rewrite (без переписывания с нуля):
 
@@ -78,6 +78,19 @@ isProject: false
 - [project/core/run_in_executor.py](project/core/run_in_executor.py): безопасный адаптер для запуска sync кода в async flow (если где-то останутся sync SDK).
 - [project/core/repository.py](project/core/repository.py): базовый репозиторий для изоляции DB операций (нужно лишь выровнять импорты под наш модуль `project.*`).
 - [project/core/caches.py](project/core/caches.py): декоратор кэширования на Redis через `aiocache` (в файле сейчас есть несостыковка импортов `app.*` — при реализации приведём к `project.*`).
+
+---
+
+## Текущее состояние (быстрый чек-лист реализации)
+
+- ✅ Catalog top-300 + stablecoin denylist
+- ✅ `MarketRankProvider`: CoinGecko primary + free fallback (CoinPaprika) при 429
+- ✅ `coin_metadata` таблица + nightly batch для `platforms/contracts` (best-effort, stop on 429)
+- ✅ Candles ingest в TimescaleDB (`candles` hypertable) по `user_tracked_assets`
+- ✅ WS slice v1: trades-only (Bybit WS) → `market_trades` (bounded periodic collector)
+- ⏳ Rate limiting/token bucket на уровне провайдеров (явно) — ещё не реализовано
+- ⏳ WS order book (L2) + support walls — ещё не реализовано
+- ⏳ Large buys clustering (5–20s) — ещё не реализовано
 
 ---
 
@@ -106,7 +119,7 @@ Universe для трекинга: `tracked_coins = user_selected ∩ catalog_coi
 
 ## 1.1. Пользовательские настройки → PostgreSQL (вместо Redis)
 
-Сейчас в коде настройки/списки монет для уведомлений завязаны на Redis-хранилище (`SettingStorage` в [project/dispatcher.py](project/dispatcher.py)). В новой версии:
+Сейчас в коде настройки/списки монет для уведомлений хранятся в PostgreSQL (без `SettingStorage`). В новой версии:
 
 - **Источник истины**: PostgreSQL (нормализованные таблицы + миграции Alembic).
 - **Пример сущностей (черновик)**:

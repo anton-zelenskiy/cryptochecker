@@ -3,55 +3,36 @@ from __future__ import annotations
 import datetime as dt
 
 import structlog
+import httpx
 
-from project.core.run_in_executor import run_in_executor
 from project.marketdata.dto import NormalizedCandle, NormalizedMarket
 from project.marketdata.providers.candles import CandleProvider
 from project.marketdata.timeframes import normalize_timeframe
-from project.api.bybit import BybitMarketAPI
 
 
 logger = structlog.get_logger(__name__)
+
+BYBIT_KLINE_URL = "https://api.bybit.com/v5/market/kline"
+
+
+def _bybit_interval(timeframe: str) -> str:
+    tf = normalize_timeframe(timeframe).code
+    return {
+        "1m": "1",
+        "5m": "5",
+        "15m": "15",
+        "1h": "60",
+        "4h": "240",
+        "1d": "D",
+    }[tf]
 
 
 class BybitCandleProvider(CandleProvider):
     source = "bybit"
 
     def __init__(self, *, api_key: str = "", api_secret: str = "") -> None:
-        # For public klines, empty keys are OK for pybit in many environments.
-        self._api = BybitMarketAPI(api_key=api_key, api_secret=api_secret)
-
-    @run_in_executor
-    def _fetch_sync(
-        self,
-        market: NormalizedMarket,
-        timeframe: str,
-        start: dt.datetime,
-        end: dt.datetime,
-    ) -> list[NormalizedCandle]:
-        tf = normalize_timeframe(timeframe)
-        # current wrapper uses 5m only and 3h window; keep best-effort by calling get_ohlc
-        # until the new httpx-based implementation is added.
-        candles = self._api.get_ohlc(currency_code=market.base_asset.lower())
-        result: list[NormalizedCandle] = []
-        for c in candles:
-            t = c.datetime.astimezone(dt.timezone.utc)
-            if start <= t <= end:
-                result.append(
-                    NormalizedCandle(
-                        source=self.source,
-                        market=market,
-                        timeframe=tf.code,
-                        open_time_utc=t,
-                        open=float(c.open),
-                        high=float(c.high),
-                        low=float(c.low),
-                        close=float(c.close),
-                        volume_base=float(getattr(c, "volume", 0.0) or 0.0),
-                        volume_quote=float(getattr(c, "turnover", 0.0) or 0.0),
-                    )
-                )
-        return result
+        # Public klines do not require api keys.
+        _ = api_key, api_secret
 
     async def fetch_ohlcv(
         self,
@@ -64,9 +45,65 @@ class BybitCandleProvider(CandleProvider):
     ) -> list[NormalizedCandle]:
         if start.tzinfo is None or end.tzinfo is None:
             raise ValueError("start/end must be timezone-aware (UTC)")
-        candles = await self._fetch_sync(market, timeframe, start, end)
-        candles.sort(key=lambda c: c.open_time_utc)
+
+        tf_code = normalize_timeframe(timeframe).code
+        interval = _bybit_interval(tf_code)
+        symbol = f"{market.base_asset.upper()}{market.quote_asset.upper()}"
+
+        params = {
+            "category": "spot",
+            "symbol": symbol,
+            "interval": interval,
+            "start": int(start.timestamp() * 1000),
+            "end": int(end.timestamp() * 1000),
+        }
         if limit is not None:
-            candles = candles[-limit:]
-        return candles
+            params["limit"] = int(limit)
+
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            r = await client.get(BYBIT_KLINE_URL, params=params)
+            r.raise_for_status()
+            payload = r.json()
+
+        result_obj = payload.get("result") if isinstance(payload, dict) else None
+        data = result_obj.get("list") if isinstance(result_obj, dict) else None
+        if not isinstance(data, list):
+            return []
+
+        result: list[NormalizedCandle] = []
+        for item in data:
+            if not isinstance(item, list) or len(item) < 7:
+                continue
+            try:
+                ts_ms = int(item[0])
+                open_ = float(item[1])
+                high_ = float(item[2])
+                low_ = float(item[3])
+                close_ = float(item[4])
+                volume_ = float(item[5])
+                turnover_ = float(item[6])
+            except Exception:
+                continue
+
+            t = dt.datetime.fromtimestamp(ts_ms / 1000, tz=dt.timezone.utc)
+            if not (start <= t <= end):
+                continue
+
+            result.append(
+                NormalizedCandle(
+                    source=self.source,
+                    market=market,
+                    timeframe=tf_code,
+                    open_time_utc=t,
+                    open=open_,
+                    high=high_,
+                    low=low_,
+                    close=close_,
+                    volume_base=volume_,
+                    volume_quote=turnover_,
+                )
+            )
+
+        result.sort(key=lambda c: c.open_time_utc)
+        return result
 

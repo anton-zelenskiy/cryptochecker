@@ -24,6 +24,27 @@ celery_app.conf.update(
             "task": "project.tasks.paper_trading.paper_trading_tick",
             "schedule": crontab(minute="*/1"),
         },
+        # CoinGecko top catalog (plan §1): refresh a few times per day, staggered from ingest
+        "refresh_catalog_top300": {
+            "task": "project.tasks.catalog.refresh_catalog_top300",
+            "schedule": crontab(minute=20, hour="*/6"),
+        },
+        # Coin metadata (plan §1): nightly batch for platforms/contracts (best-effort)
+        "refresh_coin_metadata_platforms": {
+            "task": "project.tasks.coin_metadata.refresh_coin_metadata_platforms",
+            "schedule": crontab(minute=15, hour=3),
+        },
+        # WS trades-only slice: short periodic collector into `market_trades`
+        "ingest_tracked_trades_ws": {
+            "task": "project.tasks.ws_trades.ingest_tracked_trades_ws",
+            "schedule": crontab(minute="*/1"),
+        },
     },
 )
+
+import project.tasks.catalog  # noqa: E402, F401
+import project.tasks.coin_metadata  # noqa: E402, F401
+import project.tasks.marketdata  # noqa: E402, F401
+import project.tasks.paper_trading  # noqa: E402, F401
+import project.tasks.ws_trades  # noqa: E402, F401
 

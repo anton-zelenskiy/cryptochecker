@@ -10,7 +10,9 @@ from project.core.config import settings
 from project.core.models.base import Base
 from project.models import candles as _candles  # noqa: F401
 from project.models import catalog as _catalog  # noqa: F401
+from project.models import coin_metadata as _coin_metadata  # noqa: F401
 from project.models import indicators as _indicators  # noqa: F401
+from project.models import market_trades as _market_trades  # noqa: F401
 from project.models import paper_trading as _paper  # noqa: F401
 from project.models import users as _users  # noqa: F401
 
