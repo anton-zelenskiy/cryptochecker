@@ -2,7 +2,6 @@ import os
 
 
 TELEGRAM_API_TOKEN = os.getenv('TELEGRAM_API_TOKEN', '')
-ALPHAVANTAGE_API_KEY = os.getenv('ALPHAVANTAGE_API_KEY', '')
 
 LOGGING_CONFIG = {
     'version': 1,

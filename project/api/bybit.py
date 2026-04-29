@@ -77,13 +77,31 @@ class BybitMarketAPI(CoinMarketAPI):
             for item in kline_data
         ]
 
-    # @request_counter
+    @request_counter
     @retry(exception_to_check=Exception, exception_matches=['10006', '10018', '10004'], delay=30)
     def get_favorite_coins(self) -> list[str]:
         # Bybit does not have a direct 'favorites' endpoint; assuming 'watchlist' or 'positions' as proxy
         # Here, we use positions as an example (coins with a balance)
         result = self._client.get_wallet_balance(accountType="UNIFIED")
         logger.info('got bybit wallet balance', data=result)
-        balances = result.get('result', {}).get('list', [])[0].get('coin', [])
-        favorite_coins = [item['coin'].lower() for item in balances if float(item.get('usdValue', 0)) > 0.1]
-        return favorite_coins
+        items = result.get('result', {}).get('list', [])
+        if not items:
+            return []
+
+        # API responses vary by account type/tier. Support both:
+        # - list[0]["coin"] -> list[{"coin": "...", "usdValue": "..."}]
+        # - list -> list[{"coin": "...", "walletBalance": "..."}]
+        first = items[0]
+        balances = first.get("coin") if isinstance(first, dict) else None
+        if isinstance(balances, list):
+            return [
+                str(item.get("coin", "")).lower()
+                for item in balances
+                if float(item.get("usdValue", 0) or 0) > 0.1
+            ]
+
+        return [
+            str(item.get("coin", "")).lower()
+            for item in items
+            if float(item.get("walletBalance", 0) or 0) > 0
+        ]

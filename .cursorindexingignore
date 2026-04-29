@@ -1,3 +1,9 @@
-
-# Don't index SpecStory auto-save files, but allow explicit context inclusion via @ references
-.specstory/**
+.venv/
+.pytest_cache/
+.env
+.vscode/
+.gitignore
+.git/
+celerybeat-schedule*
+.uv_cache/
+.uv_python

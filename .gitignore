@@ -8,3 +8,6 @@ pyrightconfig.json
 .env
 .vscode
 docker-compose.override.yml
+celerybeat-schedule*
+.uv_cache/
+.uv_python/

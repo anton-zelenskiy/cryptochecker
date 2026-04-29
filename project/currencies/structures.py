@@ -72,7 +72,7 @@ class VolatilityValue:
 
         return VolatilityValue(
             ratio=ratio,
-            volatility=round(abs(volatility), 1),
+            volatility=round(abs(volatility), 2),
             x1=round(x1, constants.PRECISE),
             x2=round(x2, constants.PRECISE),
         )

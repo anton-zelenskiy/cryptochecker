@@ -350,19 +350,18 @@ def add_currency_command(update: Update, context: CallbackContext) -> int:
 
 @error_handler
 def add_currency_value(update: Update, context: CallbackContext) -> int:
-    currency_code = str(update.message.text).lower()
+    currency_codes = str(update.message.text).lower().strip().replace(' ', '').split(',')
+    for currency_code in currency_codes:
+        if not market_api.is_currency_code_exists(currency_code):
+            update.message.reply_text(f'invalid currency: {currency_code}, try again:')
+            return CurrencyState.ADD_CURRENCY
 
-    if not market_api.is_currency_code_exists(currency_code):
-        update.message.reply_text('invalid currency, try again:')
-        return CurrencyState.ADD_CURRENCY
+        user_id = update.message.from_user.id
 
-    user_id = update.message.from_user.id
-
-    setting_storage.watch_coin(user_id, currency_code)
+        setting_storage.watch_coin(user_id, currency_code)
     update.message.reply_text('Currency added successfully')
 
     return ConversationHandler.END
-
 
 @error_handler
 def del_currency_command(update: Update, context: CallbackContext) -> int:

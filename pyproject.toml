@@ -1,0 +1,43 @@
+[project]
+name = "cryptochecker"
+version = "0.1.0"
+description = "Crypto screener + Telegram bot"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+  "aiogram>=3.20.0",
+  "aiocache>=0.12.3",
+  "asyncpg>=0.30.0",
+  "celery>=5.5.0",
+  "fastapi>=0.115.0",
+  "google-genai>=0.6.0",
+  "httpx>=0.28.0",
+  "pydantic-settings>=2.10.0",
+  "python-dotenv>=1.1.0",
+  "redis>=5.3.0",
+  "sqlalchemy>=2.0.43",
+  "structlog>=25.4.0",
+  "ta>=0.11.0",
+  "uvicorn[standard]>=0.35.0",
+  # Existing provider SDKs (kept for compatibility with current wrappers)
+  "kucoin-python>=1.0.25",
+  "pybit>=5.11.0",
+  "pycoingecko>=3.2.0",
+  "alembic>=1.18.4",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4.0",
+  "pytest-asyncio>=1.1.0",
+  "ruff>=0.12.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["project"]
+python_files = ["*_tests.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+

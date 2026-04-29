@@ -1,7 +1,19 @@
 services:
   app:
+    volumes:
+      - ./:/project
     restart: no
+    user: "${UID:-1000}:${GID:-1000}"
+    ports:
+      - "8002:8000"
   worker:
+    volumes:
+      - ./:/project
     restart: no
   beat:
+    volumes:
+      - ./:/project
     restart: no
+  db:
+    ports:
+      - "5436:5432"
