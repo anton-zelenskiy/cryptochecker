@@ -71,6 +71,7 @@ async def collect_trades_for_markets(
     *,
     duration_s: float = 20.0,
     max_markets: int = 20,
+    extra_headers: dict[str, str] | None = None,
 ) -> list[dict]:
     if not markets:
         return []
@@ -81,7 +82,12 @@ async def collect_trades_for_markets(
     rows: list[dict] = []
     started = asyncio.get_running_loop().time()
 
-    async with websockets.connect(BYBIT_SPOT_WS_URL, ping_interval=20, ping_timeout=20) as ws:
+    async with websockets.connect(
+        BYBIT_SPOT_WS_URL,
+        ping_interval=20,
+        ping_timeout=20,
+        additional_headers=extra_headers,
+    ) as ws:
         await ws.send(json.dumps({"op": "subscribe", "args": topics}))
 
         async for msg in _iter_messages(ws):

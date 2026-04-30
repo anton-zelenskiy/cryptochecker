@@ -12,7 +12,9 @@ from project.models import catalog as _catalog  # noqa: F401
 from project.models import coin_metadata as _coin_metadata  # noqa: F401
 from project.models import indicators as _indicators  # noqa: F401
 from project.models import market_trades as _market_trades  # noqa: F401
+from project.models import orderbook_walls as _orderbook_walls  # noqa: F401
 from project.models import paper_trading as _paper  # noqa: F401
+from project.models import trade_clusters as _trade_clusters  # noqa: F401
 from project.models import users as _users  # noqa: F401
 from project.models import volatility_events as _vol_events  # noqa: F401
 from project.web.bot import build_bot
@@ -26,18 +28,8 @@ logger = structlog.get_logger(__name__)
 async def lifespan(app: FastAPI):
     bot = app.state.bot
 
-    with contextlib.suppress(Exception):
-        await bot.set_webhook(
-            url=settings.TELEGRAM_WEBHOOK_URL,
-            secret_token=settings.TELEGRAM_WEBHOOK_SECRET,
-            drop_pending_updates=True,
-        )
-        logger.info("webhook set", url=settings.TELEGRAM_WEBHOOK_URL)
-
     yield
 
-    with contextlib.suppress(Exception):
-        await bot.delete_webhook(drop_pending_updates=False)
     await bot.session.close()
 
 

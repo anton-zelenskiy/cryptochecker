@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import structlog
-from sqlalchemy import insert
+from sqlalchemy.dialects.postgresql import insert
 
 from project.celery_app import celery_app
+from project.core.config import settings
 from project.core.db_session import sessionmanager
 from project.marketdata.dto import NormalizedMarket
 from project.marketdata.providers.bybit_ws_trades import collect_trades_for_markets
@@ -41,7 +42,13 @@ async def _ingest() -> None:
         return
 
     normalized = [NormalizedMarket(base_asset=b, quote_asset=q) for b, q in sorted(markets)]
-    rows = await collect_trades_for_markets(normalized, duration_s=20.0, max_markets=20)
+    extra_headers = {"X-BAPI-API-KEY": settings.BYBIT_API_KEY} if settings.BYBIT_API_KEY else None
+    rows = await collect_trades_for_markets(
+        normalized,
+        duration_s=20.0,
+        max_markets=20,
+        extra_headers=extra_headers,
+    )
     if not rows:
         return
 

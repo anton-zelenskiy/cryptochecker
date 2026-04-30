@@ -44,6 +44,16 @@ celery_app.conf.update(
             "task": "project.tasks.volatility.detect_big_moves",
             "schedule": crontab(minute="*/1"),
         },
+        # WS orderbook (L2) probe: detect support-side walls from first snapshots
+        "ingest_tracked_orderbook_walls": {
+            "task": "project.tasks.orderbook.ingest_tracked_orderbook_walls",
+            "schedule": crontab(minute="*/2"),
+        },
+        # Large buy clustering over recent WS trades
+        "cluster_recent_large_buys": {
+            "task": "project.tasks.trade_clusters.cluster_recent_large_buys",
+            "schedule": crontab(minute="*/1"),
+        },
     },
 )
 
@@ -53,4 +63,6 @@ import project.tasks.marketdata  # noqa: E402, F401
 import project.tasks.paper_trading  # noqa: E402, F401
 import project.tasks.ws_trades  # noqa: E402, F401
 import project.tasks.volatility  # noqa: E402, F401
+import project.tasks.orderbook  # noqa: E402, F401
+import project.tasks.trade_clusters  # noqa: E402, F401
 

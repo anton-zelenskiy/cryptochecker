@@ -22,14 +22,26 @@ class Settings(BaseSettings):
     DB_ECHO_LOG: bool = False  # Default to False for production
 
     # Telegram settings
-    TELEGRAM_BOT_TOKEN: str = "123456:TEST"
-    TELEGRAM_WEBHOOK_SECRET: str = "TEST_SECRET"
-    TELEGRAM_WEBHOOK_BASE_URL: str = "http://localhost:8000"  # e.g. https://example.com
+    TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_WEBHOOK_SECRET: str = ""
+    TELEGRAM_WEBHOOK_BASE_URL: str = ""
     TELEGRAM_WEBHOOK_PATH: str = "/telegram/webhook"
-    TELEGRAM_WEBHOOK_URL: str = f"https://{TELEGRAM_WEBHOOK_BASE_URL.rstrip('/')}{TELEGRAM_WEBHOOK_PATH}"
+    
+    @property
+    def TELEGRAM_WEBHOOK_URL(self) -> str:  # noqa
+        base = self.TELEGRAM_WEBHOOK_BASE_URL.strip().rstrip("/")
+        if base.startswith("http://") or base.startswith("https://"):
+            return f"{base}/cryptochecker{self.TELEGRAM_WEBHOOK_PATH}"
+        return f"https://{base}/cryptochecker{self.TELEGRAM_WEBHOOK_PATH}"
 
     # External providers
     COINGECKO_API_KEY: str = ""
+    KUCOIN_API_KEY: str = ""
+    KUCOIN_API_SECRET: str = ""
+    KUCOIN_API_PASSPHRASE: str = ""
+
+    BYBIT_API_KEY: str = ""
+    BYBIT_API_SECRET: str = ""
 
     # Redis settings
     REDIS_HOST: str = "redis"

@@ -5,6 +5,7 @@ import datetime as dt
 import structlog
 import httpx
 
+from project.core.config import settings
 from project.marketdata.dto import NormalizedCandle, NormalizedMarket
 from project.marketdata.providers.candles import CandleProvider
 from project.marketdata.timeframes import normalize_timeframe
@@ -32,8 +33,26 @@ def _kucoin_type(timeframe: str) -> str:
 class KuCoinCandleProvider(CandleProvider):
     source = "kucoin"
 
-    def __init__(self) -> None:
-        pass
+    def __init__(
+        self,
+        *,
+        api_key: str | None = None,
+        api_secret: str | None = None,
+        api_passphrase: str | None = None,
+    ) -> None:
+        self._api_key = api_key if api_key is not None else settings.KUCOIN_API_KEY
+        self._api_secret = api_secret if api_secret is not None else settings.KUCOIN_API_SECRET
+        self._api_passphrase = api_passphrase if api_passphrase is not None else settings.KUCOIN_API_PASSPHRASE
+
+    def _headers(self) -> dict[str, str] | None:
+        if not self._api_key:
+            return None
+        headers: dict[str, str] = {"KC-API-KEY": self._api_key}
+        if self._api_secret:
+            headers["KC-API-SECRET"] = self._api_secret
+        if self._api_passphrase:
+            headers["KC-API-PASSPHRASE"] = self._api_passphrase
+        return headers
 
     async def fetch_ohlcv(
         self,
@@ -57,12 +76,14 @@ class KuCoinCandleProvider(CandleProvider):
 
         rate_limiter = await get_rate_limiter()
         rate = RateLimitPolicy(key="ratelimit:kucoin:candles", limit=20, window_s=60)
+        headers = self._headers()
 
         async with httpx.AsyncClient(timeout=45.0) as client:
             payload = await get_json_with_retries(
                 client,
                 url=KUCOIN_CANDLES_URL,
                 params=params,
+                headers=headers,
                 rate_limiter=rate_limiter,
                 rate_limit=rate,
                 max_attempts=3,

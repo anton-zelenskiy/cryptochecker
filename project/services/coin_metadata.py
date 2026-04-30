@@ -4,7 +4,8 @@ import datetime as dt
 
 import httpx
 import structlog
-from sqlalchemy import insert, select
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 
 from project.core.config import settings
 from project.core.db_session import sessionmanager

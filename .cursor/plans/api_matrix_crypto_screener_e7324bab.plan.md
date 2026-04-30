@@ -88,9 +88,9 @@ isProject: false
 - ✅ `coin_metadata` таблица + nightly batch для `platforms/contracts` (best-effort, stop on 429)
 - ✅ Candles ingest в TimescaleDB (`candles` hypertable) по `user_tracked_assets`
 - ✅ WS slice v1: trades-only (Bybit WS) → `market_trades` (bounded periodic collector)
-- ⏳ Rate limiting/token bucket на уровне провайдеров (явно) — ещё не реализовано
-- ⏳ WS order book (L2) + support walls — ещё не реализовано
-- ⏳ Large buys clustering (5–20s) — ещё не реализовано
+- ✅ Rate limiting/token bucket на уровне провайдеров (явно) — реализовано (Redis token bucket + политики per-provider)
+- ✅ WS order book (L2) + support walls — реализовано (Bybit/KuCoin WS depth50 → `orderbook_walls`)
+- ✅ Large buys clustering (5–20s) — реализовано (`market_trades` → SQL clustering → `trade_clusters`)
 
 ---
 

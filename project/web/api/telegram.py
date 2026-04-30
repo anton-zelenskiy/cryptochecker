@@ -1,10 +1,12 @@
 from __future__ import annotations
-
+import structlog
 from aiogram.types import Update
 from fastapi import APIRouter, Header, HTTPException, Query
 from starlette.requests import Request
 
 from project.core.config import settings
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter()
 
@@ -52,15 +54,14 @@ async def telegram_webhook_set(
     # _require_admin_token(x_cryptochecker_admin_token)
     bot = request.app.state.bot
 
-    webhook_url = url or (
-        f"{settings.TELEGRAM_WEBHOOK_BASE_URL.rstrip('/')}/cryptochecker{settings.TELEGRAM_WEBHOOK_PATH}"
-    )
+    logger.info("setting telegram webhook", url=settings.TELEGRAM_WEBHOOK_URL)
+
     await bot.set_webhook(
-        url=webhook_url,
+        url=settings.TELEGRAM_WEBHOOK_URL,
         secret_token=settings.TELEGRAM_WEBHOOK_SECRET,
         drop_pending_updates=drop_pending_updates,
     )
-    return {"ok": True, "url": webhook_url}
+    return {"ok": True, "url": settings.TELEGRAM_WEBHOOK_URL}
 
 
 @router.delete(settings.TELEGRAM_WEBHOOK_PATH)
