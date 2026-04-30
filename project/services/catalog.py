@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import structlog
-from sqlalchemy import delete, insert
-
-from project.core.db_session import sessionmanager
 from project.models.catalog import CatalogCoin
 from project.marketdata.providers.coingecko_rank import CoinGeckoMarketRankProvider
 from project.marketdata.providers.coinpaprika_rank import CoinPaprikaMarketRankProvider
 from project.marketdata.providers.market_rank import ProviderRateLimited, RankedCoin
+from project.repositories.catalog import CatalogRepository
 
 
 logger = structlog.get_logger(__name__)
@@ -64,9 +62,7 @@ async def refresh_catalog_top300_non_stablecoins() -> None:
         logger.warning("catalog refresh skipped: empty result")
         return
 
-    async with sessionmanager.session() as session:
-        await session.execute(delete(CatalogCoin))
-        await session.execute(insert(CatalogCoin).values(rows))
-        await session.commit()
+    repo = CatalogRepository()
+    await repo.replace_all(rows)
 
     logger.info("catalog refreshed", rows=len(rows))

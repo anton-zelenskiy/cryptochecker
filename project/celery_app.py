@@ -28,10 +28,12 @@ celery_app.conf.update(
         "refresh_catalog_top300": {
             "task": "project.tasks.catalog.refresh_catalog_top300",
             "schedule": crontab(minute=20, hour="*/6"),
+            # "schedule": crontab(minute="*/2"),
         },
         # Coin metadata (plan §1): nightly batch for platforms/contracts (best-effort)
         "refresh_coin_metadata_platforms": {
             "task": "project.tasks.coin_metadata.refresh_coin_metadata_platforms",
+            # "schedule": crontab(minute="*/2"),
             "schedule": crontab(minute=15, hour=3),
         },
         # WS trades-only slice: short periodic collector into `market_trades`

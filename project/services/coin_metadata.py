@@ -4,15 +4,12 @@ import datetime as dt
 
 import httpx
 import structlog
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 
 from project.core.config import settings
-from project.core.db_session import sessionmanager
 from project.core.http_client import RateLimitPolicy, get_json_with_retries
 from project.core.rate_limit_provider import get_rate_limiter
-from project.models.catalog import CatalogCoin
-from project.models.coin_metadata import CoinMetadata
+from project.repositories.catalog import CatalogRepository
+from project.repositories.coin_metadata import CoinMetadataRepository
 
 
 logger = structlog.get_logger(__name__)
@@ -59,48 +56,25 @@ async def refresh_coin_metadata_platforms_from_catalog(*, limit: int = 300) -> i
 
     Stops early on 429 to avoid burning quota.
     """
-    async with sessionmanager.session() as session:
-        res = await session.execute(
-            select(CatalogCoin)
-            .where(CatalogCoin.source == "coingecko")
-            .order_by(CatalogCoin.market_cap_rank.asc())
-            .limit(limit)
-        )
-        coins = list(res.scalars().all())
+    catalog_repo = CatalogRepository()
+    coins = await catalog_repo.list_by_market_cap_rank(source="coingecko", limit=limit)
 
     if not coins:
+        logger.info("no coins to refresh", limit=limit)
         return 0
 
     fetched_at = dt.datetime.now(dt.timezone.utc)
     updated = 0
+    repo = CoinMetadataRepository()
 
     async with httpx.AsyncClient(timeout=45.0) as client:
-        async with sessionmanager.session() as session:
-            for c in coins:
-                platforms = await _fetch_coingecko_platforms(client, coin_id=c.coingecko_id)
-                if platforms is None:
-                    break
-
-                row = {
-                    "source": "coingecko",
-                    "coin_id": c.coingecko_id,
-                    "platforms": platforms,
-                    "fetched_at": fetched_at,
-                }
-
-                stmt = insert(CoinMetadata).values([row])
-                stmt = stmt.on_conflict_do_update(
-                    constraint="uq_coin_metadata_identity",
-                    set_={
-                        "platforms": stmt.excluded.platforms,
-                        "fetched_at": stmt.excluded.fetched_at,
-                        "updated_at": dt.datetime.now(dt.timezone.utc),
-                    },
-                )
-                await session.execute(stmt)
-                updated += 1
-
-            await session.commit()
+        for c in coins:
+            platforms = await _fetch_coingecko_platforms(client, coin_id=c.coingecko_id)
+            logger.info("fetched platforms", coin_id=c.coingecko_id, platforms=platforms)
+            if platforms is None:
+                break
+            await repo.upsert_platforms(coin_id=c.coingecko_id, platforms=platforms, fetched_at=fetched_at)
+            updated += 1
 
     logger.info("coin metadata refreshed", updated=updated)
     return updated

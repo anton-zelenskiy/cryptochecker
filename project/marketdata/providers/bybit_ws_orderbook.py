@@ -19,6 +19,7 @@ def _orderbook_topic(market: NormalizedMarket) -> str:
 
 
 async def _iter_messages(ws) -> AsyncIterator[dict]:
+    # NOTE: keep this generator bounded so callers can enforce wall-clock limits.
     while True:
         raw = await ws.recv()
         try:
@@ -116,11 +117,23 @@ async def collect_orderbook_walls_for_markets(
     ) as ws:
         await ws.send(json.dumps({"op": "subscribe", "args": topics}))
 
-        async for msg in _iter_messages(ws):
+        # Bybit can be silent; don't block forever on recv().
+        while True:
             if len(done_syms) >= len(sub_markets):
                 break
-            if asyncio.get_running_loop().time() - started >= duration_s:
+            elapsed = asyncio.get_running_loop().time() - started
+            if elapsed >= duration_s:
                 break
+
+            try:
+                raw = await asyncio.wait_for(ws.recv(), timeout=min(1.0, max(0.01, duration_s - elapsed)))
+            except asyncio.TimeoutError:
+                continue
+
+            try:
+                msg = json.loads(raw)
+            except Exception:
+                continue
 
             topic = msg.get("topic")
             if not isinstance(topic, str) or not topic.startswith("orderbook.50."):

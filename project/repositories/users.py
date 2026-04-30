@@ -43,6 +43,19 @@ class UserSettingsRepository(BaseRepository[UserSettings]):
             await session.refresh(settings)
             return settings
 
+    async def list_market_subscribers(self, *, base_asset: str, quote_asset: str) -> list[tuple[int, float]]:
+        async with self._sessionmanager.session() as session:
+            res = await session.execute(
+                select(TelegramUser.telegram_id, UserSettings.volatility_threshold)
+                .join(UserSettings, UserSettings.user_id == TelegramUser.id)
+                .join(UserTrackedAsset, UserTrackedAsset.user_id == TelegramUser.id)
+                .where(UserSettings.notifications_enabled.is_(True))
+                .where(UserTrackedAsset.enabled.is_(True))
+                .where(UserTrackedAsset.base_asset == base_asset)
+                .where(UserTrackedAsset.quote_asset == quote_asset)
+            )
+            return [(int(tid), float(thr)) for tid, thr in res.all()]
+
 
 class UserTrackedAssetRepository(BaseRepository[UserTrackedAsset]):
     def __init__(self) -> None:
@@ -57,6 +70,15 @@ class UserTrackedAssetRepository(BaseRepository[UserTrackedAsset]):
                 .order_by(UserTrackedAsset.added_at.asc())
             )
             return list(res.scalars().all())
+
+    async def list_distinct_enabled_markets(self) -> list[tuple[str, str]]:
+        async with self._sessionmanager.session() as session:
+            res = await session.execute(
+                select(UserTrackedAsset.base_asset, UserTrackedAsset.quote_asset)
+                .where(UserTrackedAsset.enabled.is_(True))
+                .distinct()
+            )
+            return [(str(b), str(q)) for b, q in res.all()]
 
     async def add_asset(self, user_id: int, base_asset: str, quote_asset: str = "USDT") -> UserTrackedAsset:
         return await self.create(

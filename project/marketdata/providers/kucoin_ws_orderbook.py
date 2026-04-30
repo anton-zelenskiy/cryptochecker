@@ -69,11 +69,23 @@ async def collect_orderbook_walls_for_markets(
                 )
             )
 
-        async for msg in _iter_messages(ws):
+        # KuCoin can be silent; don't block forever on recv().
+        while True:
             if len(done_syms) >= len(sub_markets):
                 break
-            if asyncio.get_running_loop().time() - started >= duration_s:
+            elapsed = asyncio.get_running_loop().time() - started
+            if elapsed >= duration_s:
                 break
+
+            try:
+                raw = await asyncio.wait_for(ws.recv(), timeout=min(1.0, max(0.01, duration_s - elapsed)))
+            except asyncio.TimeoutError:
+                continue
+
+            try:
+                msg = json.loads(raw)
+            except Exception:
+                continue
 
             if str(msg.get("type", "")).lower() != "message":
                 continue

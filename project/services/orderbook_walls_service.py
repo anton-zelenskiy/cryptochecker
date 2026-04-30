@@ -3,16 +3,13 @@ from __future__ import annotations
 import asyncio
 
 import structlog
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 
 from project.core.config import settings
-from project.core.db_session import sessionmanager
 from project.marketdata.dto import NormalizedMarket
 from project.marketdata.providers.bybit_ws_orderbook import collect_orderbook_walls_for_markets as collect_bybit_orderbook_walls
 from project.marketdata.providers.kucoin_ws_orderbook import collect_orderbook_walls_for_markets as collect_kucoin_orderbook_walls
-from project.models.orderbook_walls import OrderBookWall
-from project.models.users import UserTrackedAsset
+from project.repositories.orderbook_walls import OrderBookWallRepository
+from project.repositories.users import UserTrackedAssetRepository
 
 
 logger = structlog.get_logger(__name__)
@@ -20,13 +17,7 @@ logger = structlog.get_logger(__name__)
 
 class OrderBookWallsService:
     async def ingest_tracked_orderbook_walls(self, *, duration_s: float = 20.0, max_markets: int = 10) -> int:
-        async with sessionmanager.session() as session:
-            res = await session.execute(
-                select(UserTrackedAsset.base_asset, UserTrackedAsset.quote_asset)
-                .where(UserTrackedAsset.enabled.is_(True))
-                .distinct()
-            )
-            markets = [(str(b), str(q)) for b, q in res.all()]
+        markets = await UserTrackedAssetRepository().list_distinct_enabled_markets()
 
         if not markets:
             return 0
@@ -55,11 +46,10 @@ class OrderBookWallsService:
         if not rows:
             return 0
 
-        async with sessionmanager.session() as session:
-            stmt = insert(OrderBookWall).values(rows)
-            stmt = stmt.on_conflict_do_nothing(constraint="uq_orderbook_wall_identity")
-            await session.execute(stmt)
-            await session.commit()
+        await OrderBookWallRepository().bulk_insert_ignore_conflicts(
+            rows,
+            conflict_constraint="uq_orderbook_wall_identity",
+        )
 
         logger.info("orderbook walls attempted", candidates=len(rows))
         return len(rows)

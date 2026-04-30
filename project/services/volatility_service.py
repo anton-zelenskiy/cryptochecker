@@ -3,14 +3,12 @@ from __future__ import annotations
 import datetime as dt
 
 import structlog
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 
-from project.core.db_session import sessionmanager
 from project.models.candles import Candle
-from project.models.users import TelegramUser, UserSettings, UserTrackedAsset
-from project.models.volatility_events import VolatilityEvent
+from project.repositories.candles import CandleRepository
 from project.repositories.indicators import IndicatorSnapshotRepository
+from project.repositories.users import UserSettingsRepository, UserTrackedAssetRepository
+from project.repositories.volatility_events import VolatilityEventRepository
 from project.services.gemini import SignalSummaryInput, summarize_with_gemini
 from project.services.screener_decision import decide_from_indicator_snapshot
 from project.services.volatility_big_moves import (
@@ -37,20 +35,16 @@ class VolatilityService:
             raise ValueError(f"unsupported timeframe for big moves: {timeframe}")
 
         now = dt.datetime.now(dt.timezone.utc)
-
-        async with sessionmanager.session() as session:
-            res = await session.execute(
-                select(UserTrackedAsset.base_asset, UserTrackedAsset.quote_asset)
-                .where(UserTrackedAsset.enabled.is_(True))
-                .distinct()
-            )
-            markets = [(str(b), str(q)) for b, q in res.all()]
+        markets = await UserTrackedAssetRepository().list_distinct_enabled_markets()
 
         if not markets:
             return
 
         sources = source_preference or ["kucoin", "bybit"]
         indicator_repo = IndicatorSnapshotRepository()
+        candle_repo = CandleRepository()
+        event_repo = VolatilityEventRepository()
+        settings_repo = UserSettingsRepository()
         bot = get_bot()
 
         try:
@@ -60,6 +54,7 @@ class VolatilityService:
                     quote=quote,
                     timeframe=timeframe,
                     sources=sources,
+                    candle_repo=candle_repo,
                 )
                 if latest is None or prev is None:
                     continue
@@ -88,11 +83,12 @@ class VolatilityService:
                     latest=latest,
                     prev=prev,
                     detected_at=now,
+                    repo=event_repo,
                 )
                 if not inserted:
                     continue
 
-                subscribers = await self._list_subscribers_for_market(base=base, quote=quote)
+                subscribers = await settings_repo.list_market_subscribers(base_asset=base, quote_asset=quote)
                 if not subscribers:
                     continue
 
@@ -135,10 +131,15 @@ class VolatilityService:
         quote: str,
         timeframe: str,
         sources: list[str],
+        candle_repo: CandleRepository,
     ) -> tuple[Candle | None, Candle | None, str]:
         for src in sources:
             latest, prev = await self._get_latest_two_candles(
-                source=src, base=base, quote=quote, timeframe=timeframe
+                source=src,
+                base=base,
+                quote=quote,
+                timeframe=timeframe,
+                candle_repo=candle_repo,
             )
             if latest is not None and prev is not None:
                 return latest, prev, src
@@ -151,36 +152,9 @@ class VolatilityService:
         base: str,
         quote: str,
         timeframe: str,
+        candle_repo: CandleRepository,
     ) -> tuple[Candle | None, Candle | None]:
-        async with sessionmanager.session() as session:
-            res = await session.execute(
-                select(Candle)
-                .where(Candle.source == source)
-                .where(Candle.base_asset == base)
-                .where(Candle.quote_asset == quote)
-                .where(Candle.timeframe == timeframe)
-                .order_by(Candle.open_time_utc.desc())
-                .limit(2)
-            )
-            candles = list(res.scalars().all())
-        if not candles:
-            return None, None
-        if len(candles) == 1:
-            return candles[0], None
-        return candles[0], candles[1]
-
-    async def _list_subscribers_for_market(self, *, base: str, quote: str) -> list[tuple[int, float]]:
-        async with sessionmanager.session() as session:
-            res = await session.execute(
-                select(TelegramUser.telegram_id, UserSettings.volatility_threshold)
-                .join(UserSettings, UserSettings.user_id == TelegramUser.id)
-                .join(UserTrackedAsset, UserTrackedAsset.user_id == TelegramUser.id)
-                .where(UserSettings.notifications_enabled.is_(True))
-                .where(UserTrackedAsset.enabled.is_(True))
-                .where(UserTrackedAsset.base_asset == base)
-                .where(UserTrackedAsset.quote_asset == quote)
-            )
-            return [(int(tid), float(thr)) for tid, thr in res.all()]
+        return await candle_repo.get_latest_two(source=source, base_asset=base, quote_asset=quote, timeframe=timeframe)
 
     async def _insert_event_if_new(
         self,
@@ -194,6 +168,7 @@ class VolatilityService:
         latest: Candle,
         prev: Candle,
         detected_at: dt.datetime,
+        repo: VolatilityEventRepository,
     ) -> bool:
         row = {
             "source": source,
@@ -212,10 +187,5 @@ class VolatilityService:
                 "prev_close": float(prev.close),
             },
         }
-        async with sessionmanager.session() as session:
-            stmt = insert(VolatilityEvent).values([row])
-            stmt = stmt.on_conflict_do_nothing(constraint="uq_volatility_event_dedup")
-            res = await session.execute(stmt)
-            await session.commit()
-            return int(res.rowcount or 0) > 0
+        return await repo.insert_if_new(row, conflict_constraint="uq_volatility_event_dedup")
 
