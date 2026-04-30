@@ -39,6 +39,11 @@ celery_app.conf.update(
             "task": "project.tasks.ws_trades.ingest_tracked_trades_ws",
             "schedule": crontab(minute="*/1"),
         },
+        # Volatility checker v2: react only to big moves
+        "detect_big_moves": {
+            "task": "project.tasks.volatility.detect_big_moves",
+            "schedule": crontab(minute="*/1"),
+        },
     },
 )
 
@@ -47,4 +52,5 @@ import project.tasks.coin_metadata  # noqa: E402, F401
 import project.tasks.marketdata  # noqa: E402, F401
 import project.tasks.paper_trading  # noqa: E402, F401
 import project.tasks.ws_trades  # noqa: E402, F401
+import project.tasks.volatility  # noqa: E402, F401
 

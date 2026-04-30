@@ -6,7 +6,10 @@ import httpx
 import structlog
 from sqlalchemy import insert, select
 
+from project.core.config import settings
 from project.core.db_session import sessionmanager
+from project.core.http_client import RateLimitPolicy, get_json_with_retries
+from project.core.rate_limit_provider import get_rate_limiter
 from project.models.catalog import CatalogCoin
 from project.models.coin_metadata import CoinMetadata
 
@@ -17,22 +20,32 @@ COINGECKO_COIN_URL = "https://api.coingecko.com/api/v3/coins/{coin_id}"
 
 
 async def _fetch_coingecko_platforms(client: httpx.AsyncClient, *, coin_id: str) -> dict | None:
-    r = await client.get(
-        COINGECKO_COIN_URL.format(coin_id=coin_id),
-        params={
-            "localization": "false",
-            "tickers": "false",
-            "market_data": "false",
-            "community_data": "false",
-            "developer_data": "false",
-            "sparkline": "false",
-        },
-    )
-    if r.status_code == 429:
-        logger.warning("coingecko rate limited on coin metadata", coin_id=coin_id)
-        return None
-    r.raise_for_status()
-    payload = r.json()
+    rate_limiter = await get_rate_limiter()
+    rate = RateLimitPolicy(key="ratelimit:coingecko:coin", limit=6, window_s=60)
+    headers = {"x-cg-demo-api-key": settings.COINGECKO_API_KEY} if settings.COINGECKO_API_KEY else None
+    try:
+        payload = await get_json_with_retries(
+            client,
+            url=COINGECKO_COIN_URL.format(coin_id=coin_id),
+            params={
+                "localization": "false",
+                "tickers": "false",
+                "market_data": "false",
+                "community_data": "false",
+                "developer_data": "false",
+                "sparkline": "false",
+            },
+            headers=headers,
+            rate_limiter=rate_limiter,
+            rate_limit=rate,
+            max_attempts=3,
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response is not None and e.response.status_code == 429:
+            logger.warning("coingecko rate limited on coin metadata", coin_id=coin_id)
+            return None
+        raise
+
     platforms = payload.get("platforms")
     if isinstance(platforms, dict):
         return platforms

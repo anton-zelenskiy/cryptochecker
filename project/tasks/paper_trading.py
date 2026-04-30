@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import datetime as dt
 
 import structlog
@@ -14,6 +13,7 @@ from project.paper_trading.decision import decision_from_rsi
 from sqlalchemy import select
 
 from project.celery_app import celery_app
+from project.tasks.asyncio_runner import run as run_async
 
 
 logger = structlog.get_logger(__name__)
@@ -26,7 +26,7 @@ def paper_trading_tick() -> None:
 
     Implemented fully in later steps (signals, entries, exits, PnL persistence).
     """
-    asyncio.run(_paper_trading_tick())
+    run_async(_paper_trading_tick())
 
 
 async def _paper_trading_tick() -> None:

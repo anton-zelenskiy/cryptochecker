@@ -17,6 +17,10 @@ from project.services.gemini import SignalSummaryInput, summarize_with_gemini
 router = Router()
 
 
+def get_bot() -> Bot:
+    return Bot(token=settings.TELEGRAM_BOT_TOKEN)
+
+
 @router.message(Command("start"))
 async def start(message: Message) -> None:
     user_repo = TelegramUserRepository()
@@ -109,7 +113,7 @@ async def summary(message: Message) -> None:
 
 
 def build_bot() -> tuple[Bot, Dispatcher]:
-    bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
+    bot = get_bot()
     dp = Dispatcher()
     dp.include_router(router)
     return bot, dp

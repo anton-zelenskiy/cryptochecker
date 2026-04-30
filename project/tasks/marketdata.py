@@ -12,6 +12,7 @@ from project.marketdata.providers.bybit_candles import BybitCandleProvider
 from project.marketdata.providers.kucoin_candles import KuCoinCandleProvider
 from project.models.candles import Candle
 from project.repositories.users import TelegramUserRepository, UserTrackedAssetRepository
+from project.tasks.asyncio_runner import run as run_async
 
 
 logger = structlog.get_logger(__name__)
@@ -24,9 +25,7 @@ def ingest_tracked_candles() -> None:
 
     Runs in Celery (sync entrypoint). Internally uses async DB session via asyncio.
     """
-    import asyncio
-
-    asyncio.run(_ingest_tracked_candles())
+    run_async(_ingest_tracked_candles())
 
 
 async def _ingest_tracked_candles() -> None:

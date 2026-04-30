@@ -15,6 +15,7 @@ from project.models import indicators as _indicators  # noqa: F401
 from project.models import market_trades as _market_trades  # noqa: F401
 from project.models import paper_trading as _paper  # noqa: F401
 from project.models import users as _users  # noqa: F401
+from project.models import volatility_events as _vol_events  # noqa: F401
 
 
 config = context.config

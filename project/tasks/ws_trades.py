@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-
 import structlog
 from sqlalchemy import insert
 
@@ -11,6 +9,7 @@ from project.marketdata.dto import NormalizedMarket
 from project.marketdata.providers.bybit_ws_trades import collect_trades_for_markets
 from project.models.market_trades import MarketTrade
 from project.repositories.users import TelegramUserRepository, UserTrackedAssetRepository
+from project.tasks.asyncio_runner import run as run_async
 
 
 logger = structlog.get_logger(__name__)
@@ -24,7 +23,7 @@ def ingest_tracked_trades_ws() -> None:
     This is intentionally bounded (short runtime) and scheduled periodically, so we don't
     need a dedicated always-on daemon yet.
     """
-    asyncio.run(_ingest())
+    run_async(_ingest())
 
 
 async def _ingest() -> None:

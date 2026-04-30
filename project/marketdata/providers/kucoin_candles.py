@@ -8,6 +8,8 @@ import httpx
 from project.marketdata.dto import NormalizedCandle, NormalizedMarket
 from project.marketdata.providers.candles import CandleProvider
 from project.marketdata.timeframes import normalize_timeframe
+from project.core.http_client import RateLimitPolicy, get_json_with_retries
+from project.core.rate_limit_provider import get_rate_limiter
 
 
 logger = structlog.get_logger(__name__)
@@ -53,10 +55,18 @@ class KuCoinCandleProvider(CandleProvider):
             "endAt": int(end.timestamp()),
         }
 
+        rate_limiter = await get_rate_limiter()
+        rate = RateLimitPolicy(key="ratelimit:kucoin:candles", limit=20, window_s=60)
+
         async with httpx.AsyncClient(timeout=45.0) as client:
-            r = await client.get(KUCOIN_CANDLES_URL, params=params)
-            r.raise_for_status()
-            payload = r.json()
+            payload = await get_json_with_retries(
+                client,
+                url=KUCOIN_CANDLES_URL,
+                params=params,
+                rate_limiter=rate_limiter,
+                rate_limit=rate,
+                max_attempts=3,
+            )
 
         data = payload.get("data") if isinstance(payload, dict) else None
         if not isinstance(data, list):

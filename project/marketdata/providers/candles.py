@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Protocol
 
+from typing import Protocol
 from project.marketdata.dto import NormalizedCandle, NormalizedMarket
 
 

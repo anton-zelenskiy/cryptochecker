@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     TELEGRAM_WEBHOOK_SECRET: str = "TEST_SECRET"
     TELEGRAM_WEBHOOK_BASE_URL: str = "http://localhost:8000"  # e.g. https://example.com
     TELEGRAM_WEBHOOK_PATH: str = "/telegram/webhook"
+    TELEGRAM_WEBHOOK_URL: str = f"https://{TELEGRAM_WEBHOOK_BASE_URL.rstrip('/')}{TELEGRAM_WEBHOOK_PATH}"
+
+    # External providers
+    COINGECKO_API_KEY: str = ""
 
     # Redis settings
     REDIS_HOST: str = "redis"
@@ -44,7 +48,7 @@ class Settings(BaseSettings):
         return f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     BACKEND_CORS_ORIGINS: list[str] = [
-        'http://localhost:5001',
+        'http://localhost:8000',
         'https://tidy-simply-camel.ngrok-free.app',
     ]
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 import structlog
 import httpx
 
+from project.core.http_client import RateLimitPolicy, get_json_with_retries
+from project.core.rate_limit_provider import get_rate_limiter
 from project.marketdata.providers.market_rank import RankedCoin
 from project.services.stablecoins import STABLE_SYMBOL_DENYLIST
 
@@ -16,10 +18,20 @@ class CoinPaprikaMarketRankProvider:
     source = "coinpaprika"
 
     async def fetch_top_by_market_cap(self, *, limit: int) -> list[RankedCoin]:
+        rate_limiter = await get_rate_limiter()
+        rate = RateLimitPolicy(key="ratelimit:coinpaprika:tickers", limit=4, window_s=60)
+
         async with httpx.AsyncClient(timeout=60.0) as client:
-            r = await client.get(COINPAPRIKA_TICKERS_URL, params={"quotes": "USD"})
-            r.raise_for_status()
-            payload = r.json()
+            payload = await get_json_with_retries(
+                client,
+                url=COINPAPRIKA_TICKERS_URL,
+                params={"quotes": "USD"},
+                rate_limiter=rate_limiter,
+                rate_limit=rate,
+                max_attempts=3,
+            )
+            if not isinstance(payload, list):
+                return []
 
         coins: list[RankedCoin] = []
         seen: set[str] = set()
