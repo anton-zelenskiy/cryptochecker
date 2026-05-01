@@ -5,9 +5,9 @@ import asyncio
 import structlog
 
 from project.core.config import settings
+from project.marketdata.api.bybit import collect_orderbook_walls_for_markets as collect_bybit_orderbook_walls
+from project.marketdata.api.kucoin import collect_orderbook_walls_for_markets as collect_kucoin_orderbook_walls
 from project.marketdata.dto import NormalizedMarket
-from project.marketdata.providers.bybit_ws_orderbook import collect_orderbook_walls_for_markets as collect_bybit_orderbook_walls
-from project.marketdata.providers.kucoin_ws_orderbook import collect_orderbook_walls_for_markets as collect_kucoin_orderbook_walls
 from project.repositories.orderbook_walls import OrderBookWallRepository
 from project.repositories.users import UserTrackedAssetRepository
 

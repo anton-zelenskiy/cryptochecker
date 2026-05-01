@@ -10,5 +10,6 @@ STABLE_SYMBOL_DENYLIST: set[str] = {
     "pyusd",
     "usde",
     "frax",
+    'usd1',
 }
 

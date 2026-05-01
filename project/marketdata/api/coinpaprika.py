@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-import structlog
 import httpx
 
+from project.core.caches import cached_method
 from project.core.http_client import RateLimitPolicy, get_json_with_retries
 from project.core.rate_limit_provider import get_rate_limiter
-from project.marketdata.providers.market_rank import RankedCoin
+from project.marketdata.dto import RankedCoin
 from project.services.stablecoins import STABLE_SYMBOL_DENYLIST
 
-
-logger = structlog.get_logger(__name__)
 
 COINPAPRIKA_TICKERS_URL = "https://api.coinpaprika.com/v1/tickers"
 
 
-class CoinPaprikaMarketRankProvider:
+class CoinPaprikaApi:
     source = "coinpaprika"
 
+    @cached_method(key_prefix="market_rank:coinpaprika", ttl=60 * 60 * 24)
     async def fetch_top_by_market_cap(self, *, limit: int) -> list[RankedCoin]:
         rate_limiter = await get_rate_limiter()
         rate = RateLimitPolicy(key="ratelimit:coinpaprika:tickers", limit=4, window_s=60)
@@ -36,7 +35,6 @@ class CoinPaprikaMarketRankProvider:
         coins: list[RankedCoin] = []
         seen: set[str] = set()
 
-        # coinpaprika returns a large list; rank is already numeric and roughly market-cap ordered.
         for item in payload:
             if len(coins) >= limit:
                 break
@@ -61,4 +59,3 @@ class CoinPaprikaMarketRankProvider:
             seen.add(cid)
 
         return coins
-

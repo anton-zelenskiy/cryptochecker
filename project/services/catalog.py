@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import structlog
-from project.models.catalog import CatalogCoin
-from project.marketdata.providers.coingecko_rank import CoinGeckoMarketRankProvider
-from project.marketdata.providers.coinpaprika_rank import CoinPaprikaMarketRankProvider
-from project.marketdata.providers.market_rank import ProviderRateLimited, RankedCoin
+
+from project.marketdata.api.coinpaprika import CoinPaprikaApi
+from project.marketdata.api.coingecko import CoinGeckoApi
+from project.marketdata.dto import RankedCoin
+from project.marketdata.exceptions import ProviderRateLimited
 from project.repositories.catalog import CatalogRepository
 
 
 logger = structlog.get_logger(__name__)
+
 
 def _ranked_coins_to_rows(coins: list[RankedCoin], *, limit: int) -> list[dict]:
     rows: list[dict] = []
@@ -32,7 +34,7 @@ async def fetch_top300_non_stablecoin_rows() -> list[dict]:
 
     Primary: CoinGecko. Fallback: CoinPaprika when CoinGecko hits 429/rate limits.
     """
-    cg = CoinGeckoMarketRankProvider()
+    cg = CoinGeckoApi()
     try:
         coins = await cg.fetch_top_by_market_cap(limit=300)
         return _ranked_coins_to_rows(coins, limit=300)
@@ -41,7 +43,7 @@ async def fetch_top300_non_stablecoin_rows() -> list[dict]:
     except Exception as e:
         logger.warning("catalog primary failed, falling back", primary=cg.source, error=str(e))
 
-    fb = CoinPaprikaMarketRankProvider()
+    fb = CoinPaprikaApi()
     coins = await fb.fetch_top_by_market_cap(limit=300)
     return _ranked_coins_to_rows(coins, limit=300)
 

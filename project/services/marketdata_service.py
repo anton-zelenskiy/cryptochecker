@@ -5,9 +5,9 @@ from collections import Counter
 
 import structlog
 
+from project.marketdata.api.bybit import BybitApi
+from project.marketdata.api.kucoin import KuCoinApi
 from project.marketdata.dto import NormalizedMarket
-from project.marketdata.providers.bybit_candles import BybitCandleProvider
-from project.marketdata.providers.kucoin_candles import KuCoinCandleProvider
 from project.repositories.candles import CandleRepository
 from project.repositories.users import UserTrackedAssetRepository
 
@@ -30,7 +30,7 @@ class MarketDataService:
         start = end - dt.timedelta(hours=lookback_hours)
         log = log.bind(markets=len(markets), timeframe=timeframe, start=start.isoformat(), end=end.isoformat())
 
-        providers = [KuCoinCandleProvider(), BybitCandleProvider()]
+        providers = [KuCoinApi(), BybitApi()]
         candle_repo = CandleRepository()
 
         rows: list[dict] = []

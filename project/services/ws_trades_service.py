@@ -3,8 +3,8 @@ from __future__ import annotations
 import structlog
 
 from project.core.config import settings
+from project.marketdata.api.bybit import collect_trades_for_markets
 from project.marketdata.dto import NormalizedMarket
-from project.marketdata.providers.bybit_ws_trades import collect_trades_for_markets
 from project.repositories.market_trades import MarketTradeRepository
 from project.repositories.users import UserTrackedAssetRepository
 

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import datetime as dt
-
 from typing import Protocol
+
 from project.marketdata.dto import NormalizedCandle, NormalizedMarket
 
 
-class CandleProvider(Protocol):
+class CandleSource(Protocol):
     source: str
 
     async def fetch_ohlcv(
@@ -18,9 +18,4 @@ class CandleProvider(Protocol):
         *,
         limit: int | None = None,
     ) -> list[NormalizedCandle]:
-        """
-        Fetch OHLCV candles in [start, end] (UTC).
-
-        Providers may ignore `limit` if their API doesn't support it.
-        """
-
+        """Fetch OHLCV candles in [start, end] (UTC). Implementations may ignore `limit`."""

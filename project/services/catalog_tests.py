@@ -4,7 +4,8 @@ import pytest
 
 from project.services import catalog as catalog_module
 from project.services.stablecoins import STABLE_SYMBOL_DENYLIST
-from project.marketdata.providers.market_rank import ProviderRateLimited, RankedCoin
+from project.marketdata.dto import RankedCoin
+from project.marketdata.exceptions import ProviderRateLimited
 
 
 def test_stable_symbols_filtered_from_row_building() -> None:
@@ -23,11 +24,11 @@ async def test_fetch_top300_falls_back_on_429(monkeypatch: pytest.MonkeyPatch) -
         ]
 
     monkeypatch.setattr(
-        "project.marketdata.providers.coingecko_rank.CoinGeckoMarketRankProvider.fetch_top_by_market_cap",
+        "project.marketdata.api.coingecko.CoinGeckoApi.fetch_top_by_market_cap",
         fake_primary,
     )
     monkeypatch.setattr(
-        "project.marketdata.providers.coinpaprika_rank.CoinPaprikaMarketRankProvider.fetch_top_by_market_cap",
+        "project.marketdata.api.coinpaprika.CoinPaprikaApi.fetch_top_by_market_cap",
         fake_fallback,
     )
 

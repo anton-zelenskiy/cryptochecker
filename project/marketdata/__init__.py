@@ -1,2 +1,2 @@
-"""Market data adapters (candles, trades, orderbook) and DTOs."""
+"""Market data API clients, DTOs, and shared utilities."""
 

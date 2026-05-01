@@ -4,11 +4,7 @@ import datetime as dt
 
 import pytest
 
-from project.marketdata.providers.bybit_ws_orderbook import (
-    _parse_levels,
-    _parse_ts_ms,
-    pick_support_wall,
-)
+from project.marketdata.api.ws_common import parse_orderbook_levels, parse_ts_ms, pick_support_wall
 
 
 def test_pick_support_wall_detects_large_notional_outlier() -> None:
@@ -35,7 +31,7 @@ def test_pick_support_wall_returns_none_when_no_levels() -> None:
 
 
 def test_parse_levels_accepts_string_arrays() -> None:
-    assert _parse_levels([["1.5", "2"], ["bad"], ["3", "not-a-number"]]) == [(1.5, 2.0)]
+    assert parse_orderbook_levels([["1.5", "2"], ["bad"], ["3", "not-a-number"]]) == [(1.5, 2.0)]
 
 
 @pytest.mark.parametrize(
@@ -48,7 +44,7 @@ def test_parse_levels_accepts_string_arrays() -> None:
     ],
 )
 def test_parse_ts_ms(value: object, expected: int | None) -> None:
-    assert _parse_ts_ms(value) == expected
+    assert parse_ts_ms(value) == expected
 
 
 def test_bucket_timestamp_roundtrip_example() -> None:

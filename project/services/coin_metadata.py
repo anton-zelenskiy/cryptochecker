@@ -2,52 +2,19 @@ from __future__ import annotations
 
 import datetime as dt
 
-import httpx
 import structlog
 
-from project.core.config import settings
-from project.core.http_client import RateLimitPolicy, get_json_with_retries
-from project.core.rate_limit_provider import get_rate_limiter
+from project.marketdata.api.coingecko import CoinGeckoApi
 from project.repositories.catalog import CatalogRepository
 from project.repositories.coin_metadata import CoinMetadataRepository
 
 
 logger = structlog.get_logger(__name__)
 
-COINGECKO_COIN_URL = "https://api.coingecko.com/api/v3/coins/{coin_id}"
 
-
-async def _fetch_coingecko_platforms(client: httpx.AsyncClient, *, coin_id: str) -> dict | None:
-    rate_limiter = await get_rate_limiter()
-    rate = RateLimitPolicy(key="ratelimit:coingecko:coin", limit=6, window_s=60)
-    headers = {"x-cg-demo-api-key": settings.COINGECKO_API_KEY} if settings.COINGECKO_API_KEY else None
-    try:
-        payload = await get_json_with_retries(
-            client,
-            url=COINGECKO_COIN_URL.format(coin_id=coin_id),
-            params={
-                "localization": "false",
-                "tickers": "false",
-                "market_data": "false",
-                "community_data": "false",
-                "developer_data": "false",
-                "sparkline": "false",
-            },
-            headers=headers,
-            rate_limiter=rate_limiter,
-            rate_limit=rate,
-            max_attempts=3,
-        )
-    except httpx.HTTPStatusError as e:
-        if e.response is not None and e.response.status_code == 429:
-            logger.warning("coingecko rate limited on coin metadata", coin_id=coin_id)
-            return None
-        raise
-
+def _extract_platforms(payload: dict) -> dict | None:
     platforms = payload.get("platforms")
-    if isinstance(platforms, dict):
-        return platforms
-    return None
+    return platforms if isinstance(platforms, dict) else None
 
 
 async def refresh_coin_metadata_platforms_from_catalog(*, limit: int = 300) -> int:
@@ -66,15 +33,16 @@ async def refresh_coin_metadata_platforms_from_catalog(*, limit: int = 300) -> i
     fetched_at = dt.datetime.now(dt.timezone.utc)
     updated = 0
     repo = CoinMetadataRepository()
+    api = CoinGeckoApi()
 
-    async with httpx.AsyncClient(timeout=45.0) as client:
-        for c in coins:
-            platforms = await _fetch_coingecko_platforms(client, coin_id=c.coingecko_id)
-            logger.info("fetched platforms", coin_id=c.coingecko_id, platforms=platforms)
-            if platforms is None:
-                break
-            await repo.upsert_platforms(coin_id=c.coingecko_id, platforms=platforms, fetched_at=fetched_at)
-            updated += 1
+    for c in coins:
+        payload = await api.get_coin_details(coin_id=c.coingecko_id)
+        platforms = _extract_platforms(payload) if payload is not None else None
+        logger.info("fetched platforms", coin_id=c.coingecko_id, platforms=platforms)
+        if platforms is None:
+            break
+        await repo.upsert_platforms(coin_id=c.coingecko_id, platforms=platforms, fetched_at=fetched_at)
+        updated += 1
 
     logger.info("coin metadata refreshed", updated=updated)
     return updated
