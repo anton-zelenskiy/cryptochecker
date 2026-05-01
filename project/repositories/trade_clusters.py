@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 
 from project.core.db_session import sessionmanager
@@ -60,6 +60,23 @@ class TradeClustersRepository:
                 },
             )
             return list(res.mappings().all())
+
+    async def count_recent_for_market(
+        self,
+        *,
+        base_asset: str,
+        quote_asset: str,
+        since: dt.datetime,
+    ) -> int:
+        async with sessionmanager.session() as session:
+            res = await session.execute(
+                select(func.count())
+                .select_from(TradeCluster)
+                .where(TradeCluster.base_asset == base_asset)
+                .where(TradeCluster.quote_asset == quote_asset)
+                .where(TradeCluster.detected_at >= since)
+            )
+            return int(res.scalar_one() or 0)
 
     async def bulk_insert_ignore_conflicts(self, rows: list[dict], *, conflict_constraint: str) -> int:
         if not rows:

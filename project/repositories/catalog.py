@@ -26,3 +26,15 @@ class CatalogRepository:
             )
             return list(res.scalars().all())
 
+    async def get_first_by_symbol(self, *, source: str, symbol: str) -> CatalogCoin | None:
+        sym = symbol.strip().upper()
+        async with sessionmanager.session() as session:
+            res = await session.execute(
+                select(CatalogCoin)
+                .where(CatalogCoin.source == source)
+                .where(CatalogCoin.symbol == sym)
+                .order_by(CatalogCoin.market_cap_rank.asc().nulls_last())
+                .limit(1)
+            )
+            return res.scalar_one_or_none()
+

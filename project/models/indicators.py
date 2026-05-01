@@ -21,6 +21,21 @@ class IndicatorSnapshot(Base):
     asof_time_utc: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     rsi_14: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ema_20: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ema_50: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ema_200: Mapped[float | None] = mapped_column(Float, nullable=True)
+    macd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    macd_signal: Mapped[float | None] = mapped_column(Float, nullable=True)
+    macd_hist: Mapped[float | None] = mapped_column(Float, nullable=True)
+    atr_14: Mapped[float | None] = mapped_column(Float, nullable=True)
+    adx_14: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bb_upper: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bb_mid: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bb_lower: Mapped[float | None] = mapped_column(Float, nullable=True)
+    mfi_14: Mapped[float | None] = mapped_column(Float, nullable=True)
+    obv: Mapped[float | None] = mapped_column(Float, nullable=True)
+    stochrsi_k: Mapped[float | None] = mapped_column(Float, nullable=True)
+    stochrsi_d: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     __table_args__ = (
         UniqueConstraint(

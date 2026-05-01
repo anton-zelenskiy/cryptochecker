@@ -21,6 +21,14 @@ def get_bot() -> Bot:
     return Bot(token=settings.TELEGRAM_BOT_TOKEN)
 
 
+async def send_telegram_text(*, chat_id: int, text: str) -> None:
+    bot = get_bot()
+    try:
+        await bot.send_message(chat_id=chat_id, text=text)
+    finally:
+        await bot.session.close()
+
+
 @router.message(Command("start"))
 async def start(message: Message) -> None:
     user_repo = TelegramUserRepository()

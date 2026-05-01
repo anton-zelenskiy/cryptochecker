@@ -7,10 +7,11 @@ import structlog
 from project.models.candles import Candle
 from project.repositories.candles import CandleRepository
 from project.repositories.indicators import IndicatorSnapshotRepository
+from project.repositories.screener_snapshots import ScreenerSnapshotRepository
 from project.repositories.users import UserSettingsRepository, UserTrackedAssetRepository
 from project.repositories.volatility_events import VolatilityEventRepository
 from project.services.gemini import SignalSummaryInput, summarize_with_gemini
-from project.services.screener_decision import decide_from_indicator_snapshot
+from project.services.screener_service import fallback_decision_from_indicator_snapshot
 from project.services.volatility_big_moves import (
     compute_big_move_metrics,
     floor_time,
@@ -20,6 +21,19 @@ from project.web.bot import get_bot
 
 
 logger = structlog.get_logger(__name__)
+
+
+def _rsi_from_screener_features(features: dict | None) -> float | None:
+    if not isinstance(features, dict):
+        return None
+    per = features.get("per_tf_indicators")
+    if not isinstance(per, dict):
+        return None
+    for k in ("1h", "15m", "4h", "5m"):
+        block = per.get(k)
+        if isinstance(block, dict) and block.get("rsi_14") is not None:
+            return float(block["rsi_14"])
+    return None
 
 
 class VolatilityService:
@@ -42,6 +56,7 @@ class VolatilityService:
 
         sources = source_preference or ["kucoin", "bybit"]
         indicator_repo = IndicatorSnapshotRepository()
+        screener_repo = ScreenerSnapshotRepository()
         candle_repo = CandleRepository()
         event_repo = VolatilityEventRepository()
         settings_repo = UserSettingsRepository()
@@ -92,23 +107,44 @@ class VolatilityService:
                 if not subscribers:
                     continue
 
-                snap = await indicator_repo.get_latest(
-                    source=source_used, base_asset=base, quote_asset=quote, timeframe=timeframe
-                )
-                decision = decide_from_indicator_snapshot(snap)
-                ai_text = await summarize_with_gemini(
-                    SignalSummaryInput(
-                        symbol=f"{base}/{quote}",
-                        decision=decision.decision,
-                        confidence=decision.confidence,
-                        rsi_14=decision.rsi_14,
+                scr = await screener_repo.get_latest_for_market(base_asset=base, quote_asset=quote)
+                rsi_for_msg: float | None = None
+                if scr and (now - scr.computed_at).total_seconds() < 45 * 60:
+                    decision_str = scr.final_decision
+                    decision_conf = float(scr.final_confidence)
+                    rsi_for_msg = _rsi_from_screener_features(scr.features)
+                    reasons = scr.reasons if isinstance(scr.reasons, list) else []
+                    ai_text = await summarize_with_gemini(
+                        SignalSummaryInput(
+                            symbol=f"{base}/{quote}",
+                            decision=decision_str,
+                            confidence=decision_conf,
+                            rsi_14=rsi_for_msg,
+                            screener_final_decision=scr.final_decision,
+                            screener_final_confidence=float(scr.final_confidence),
+                            screener_reasons=[str(x) for x in reasons[:12]],
+                            llm_verdict=scr.llm_verdict,
+                            llm_rationale=scr.llm_rationale,
+                        )
                     )
-                )
+                else:
+                    snap = await indicator_repo.get_latest(
+                        source=source_used, base_asset=base, quote_asset=quote, timeframe=timeframe
+                    )
+                    decision_str, decision_conf, rsi_for_msg = fallback_decision_from_indicator_snapshot(snap)
+                    ai_text = await summarize_with_gemini(
+                        SignalSummaryInput(
+                            symbol=f"{base}/{quote}",
+                            decision=decision_str,
+                            confidence=decision_conf,
+                            rsi_14=rsi_for_msg,
+                        )
+                    )
 
                 direction = "UP" if metrics.pct_change >= 0 else "DOWN"
                 base_text = (
                     f"{base}/{quote} {direction} {metrics.pct_change:.2f}% (range {metrics.range_pct:.2f}%)\n"
-                    f"decision={decision.decision} confidence={decision.confidence:.2f} rsi14={decision.rsi_14}"
+                    f"decision={decision_str} confidence={decision_conf:.2f} rsi14={rsi_for_msg}"
                 )
                 text = ai_text or base_text
 

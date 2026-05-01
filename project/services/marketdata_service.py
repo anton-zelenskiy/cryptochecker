@@ -94,3 +94,14 @@ class MarketDataService:
             elapsed_ms=elapsed_ms,
         )
 
+    async def ingest_tracked_candles_multi(self) -> None:
+        specs: tuple[tuple[str, int], ...] = (
+            ("5m", 6),
+            ("15m", 72),
+            ("1h", 336),
+            ("4h", 720),
+            ("1d", 2160),
+        )
+        for tf, hours in specs:
+            await self.ingest_tracked_candles(timeframe=tf, lookback_hours=hours)
+

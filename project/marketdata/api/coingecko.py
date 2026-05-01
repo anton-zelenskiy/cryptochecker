@@ -53,6 +53,42 @@ class CoinGeckoApi:
 
         return payload if isinstance(payload, dict) else None
 
+    @cached_method(key_prefix="coingecko:coin_market_data", ttl=60 * 60 * 24)
+    async def get_coin_with_market_data(self, *, coin_id: str) -> dict | None:
+        """
+        GET /coins/{id} with market_data=true (mcap, FDV, volume, TVL when present).
+        Not cached: callers (e.g. fundamentals snapshots) apply their own TTL in storage.
+        """
+        rate_limiter = await get_rate_limiter()
+        rate = RateLimitPolicy(key="ratelimit:coingecko:coin_market", limit=6, window_s=60)
+        headers = {"x-cg-demo-api-key": settings.COINGECKO_API_KEY} if settings.COINGECKO_API_KEY else None
+
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            try:
+                payload = await get_json_with_retries(
+                    client,
+                    url=COINGECKO_COIN_URL.format(coin_id=coin_id),
+                    params={
+                        "localization": "false",
+                        "tickers": "false",
+                        "market_data": "true",
+                        "community_data": "false",
+                        "developer_data": "false",
+                        "sparkline": "false",
+                    },
+                    headers=headers,
+                    rate_limiter=rate_limiter,
+                    rate_limit=rate,
+                    max_attempts=3,
+                )
+            except httpx.HTTPStatusError as e:
+                if e.response is not None and e.response.status_code == 429:
+                    logger.warning("coingecko rate limited on coin market_data", coin_id=coin_id)
+                    return None
+                raise
+
+        return payload if isinstance(payload, dict) else None
+
     async def list_markets_by_market_cap(self, *, page: int) -> list[dict] | None:
         rate_limiter = await get_rate_limiter()
         rate = RateLimitPolicy(key="ratelimit:coingecko:coins_markets", limit=8, window_s=60)

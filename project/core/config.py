@@ -71,4 +71,9 @@ class Settings(BaseSettings):
     # Examples: "172.22.0.1", "172.22.0.0/16", "127.0.0.1,10.0.0.0/8"
     TRUSTED_PROXY_HOSTS: str = '*'
 
+    SCREENER_LLM_RECHECK_ENABLED: bool = True
+
+    SCREENER_NOTIFICATIONS_ENABLED: bool = True
+    SCREENER_NOTIFY_MIN_CONFIDENCE: float = 0.65
+
 settings = Settings()

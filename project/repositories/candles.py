@@ -6,6 +6,9 @@ from sqlalchemy import select
 from project.core.db_session import sessionmanager
 from project.models.candles import Candle
 
+# asyncpg hard limit ~32767 bind parameters per statement; candles row uses ~11 columns.
+_CANDLES_BULK_CHUNK_SIZE = 2500
+
 
 class CandleRepository:
     async def bulk_insert_ignore_conflicts(
@@ -17,12 +20,16 @@ class CandleRepository:
         if not rows:
             return 0
 
+        inserted = 0
         async with sessionmanager.session() as session:
-            stmt = insert(Candle).values(rows)
-            stmt = stmt.on_conflict_do_nothing(constraint=conflict_constraint)
-            res = await session.execute(stmt)
+            for i in range(0, len(rows), _CANDLES_BULK_CHUNK_SIZE):
+                chunk = rows[i : i + _CANDLES_BULK_CHUNK_SIZE]
+                stmt = insert(Candle).values(chunk)
+                stmt = stmt.on_conflict_do_nothing(constraint=conflict_constraint)
+                res = await session.execute(stmt)
+                inserted += int(getattr(res, "rowcount", 0) or 0)
             await session.commit()
-            return int(getattr(res, "rowcount", 0) or 0)
+        return inserted
 
     async def get_latest(self, *, source: str, base_asset: str, quote_asset: str, timeframe: str) -> Candle | None:
         async with sessionmanager.session() as session:
