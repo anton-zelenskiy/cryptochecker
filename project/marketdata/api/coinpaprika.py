@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 
 from project.core.caches import cached_method
-from project.core.http_client import RateLimitPolicy, get_json_with_retries
+from project.core.http_client import RateLimitPolicy, get_json
 from project.core.rate_limit_provider import get_rate_limiter
 from project.marketdata.dto import RankedCoin
 from project.services.stablecoins import STABLE_SYMBOL_DENYLIST
@@ -21,7 +21,7 @@ class CoinPaprikaApi:
         rate = RateLimitPolicy(key="ratelimit:coinpaprika:tickers", limit=4, window_s=60)
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            payload = await get_json_with_retries(
+            payload = await get_json(
                 client,
                 url=COINPAPRIKA_TICKERS_URL,
                 params={"quotes": "USD"},

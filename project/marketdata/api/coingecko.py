@@ -5,7 +5,7 @@ import structlog
 
 from project.core.caches import cached_method
 from project.core.config import settings
-from project.core.http_client import RateLimitPolicy, get_json_with_retries
+from project.core.http_client import RateLimitPolicy, get_json
 from project.core.rate_limit_provider import get_rate_limiter
 from project.marketdata.dto import RankedCoin
 from project.marketdata.exceptions import ProviderRateLimited
@@ -29,7 +29,7 @@ class CoinGeckoApi:
 
         async with httpx.AsyncClient(timeout=45.0) as client:
             try:
-                payload = await get_json_with_retries(
+                payload = await get_json(
                     client,
                     url=COINGECKO_COIN_URL.format(coin_id=coin_id),
                     params={
@@ -65,7 +65,7 @@ class CoinGeckoApi:
 
         async with httpx.AsyncClient(timeout=45.0) as client:
             try:
-                payload = await get_json_with_retries(
+                payload = await get_json(
                     client,
                     url=COINGECKO_COIN_URL.format(coin_id=coin_id),
                     params={
@@ -95,7 +95,7 @@ class CoinGeckoApi:
         headers = {"x-cg-demo-api-key": settings.COINGECKO_API_KEY} if settings.COINGECKO_API_KEY else None
 
         async with httpx.AsyncClient(timeout=45.0) as client:
-            payload = await get_json_with_retries(
+            payload = await get_json(
                 client,
                 url=COINGECKO_MARKETS_URL,
                 params={

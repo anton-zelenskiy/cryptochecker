@@ -17,12 +17,14 @@ class Retry:
         max_attempts: int = 3,
         back_off: int = 2,
         start_delay: int = 0.5,
-        exceptions: tuple[Exception, ...] | None = None,
+        exceptions: tuple[type[BaseException], ...] | None = None,
+        on_retry: Callable[[BaseException, int, float], Any] | None = None,
     ) -> None:
         self._max_attempts = max_attempts
         self._back_off = back_off
         self._start_delay = start_delay
-        self._exceptions = exceptions or Exception
+        self._exceptions: tuple[type[BaseException], ...] = exceptions or (Exception,)
+        self._on_retry = on_retry
 
     def __call__(self, fn: Callable) -> Callable:
         assert asyncio.iscoroutinefunction(fn)  # noqa: S101
@@ -33,7 +35,11 @@ class Retry:
             for _ in range(1, self._max_attempts):
                 try:
                     return await fn(*args, **kwargs)
-                except self._exceptions:
+                except self._exceptions as e:
+                    if self._on_retry is not None:
+                        res = self._on_retry(e, _, time_to_sleep)
+                        if asyncio.iscoroutine(res):
+                            await res
                     await asyncio.sleep(time_to_sleep)
                     time_to_sleep *= self._back_off
 

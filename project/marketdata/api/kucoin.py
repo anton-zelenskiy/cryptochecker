@@ -9,7 +9,7 @@ import httpx
 import websockets
 
 from project.core.config import settings
-from project.core.http_client import RateLimitPolicy, get_json_with_retries
+from project.core.http_client import RateLimitPolicy, get_json
 from project.core.rate_limit_provider import get_rate_limiter
 from project.marketdata.api.ws_common import parse_orderbook_levels, parse_ts_ms, pick_support_wall
 from project.marketdata.dto import NormalizedCandle, NormalizedMarket
@@ -194,7 +194,7 @@ class KuCoinApi:
         headers = self._headers()
 
         async with httpx.AsyncClient(timeout=45.0) as client:
-            payload = await get_json_with_retries(
+            payload = await get_json(
                 client,
                 url=KUCOIN_CANDLES_URL,
                 params=params,

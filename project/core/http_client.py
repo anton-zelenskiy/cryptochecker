@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import asyncio
-import random
 from dataclasses import dataclass
 
 import httpx
 import structlog
 
 from project.core.rate_limit import RateLimitExceeded, RateLimiter
+from project.core.retry import Retry
 
 
 logger = structlog.get_logger(__name__)
@@ -20,11 +19,31 @@ class RateLimitPolicy:
     window_s: int
 
 
-def _jittered_sleep_s(base: float) -> float:
-    return base * (0.7 + random.random() * 0.6)
+class Http429RateLimitedError(Exception):
+    pass
 
 
-async def get_json_with_retries(
+async def _get_json_once(
+    client: httpx.AsyncClient,
+    *,
+    url: str,
+    params: dict | None = None,
+    headers: dict[str, str] | None = None,
+    rate_limiter: RateLimiter | None = None,
+    rate_limit: RateLimitPolicy | None = None,
+) -> object:
+    if rate_limiter is not None and rate_limit is not None:
+        await rate_limiter.hit(key=rate_limit.key, limit=rate_limit.limit, window_s=rate_limit.window_s)
+
+    r = await client.get(url, params=params, headers=headers)
+    if r.status_code == 429:
+        raise Http429RateLimitedError("429 Too Many Requests")
+
+    r.raise_for_status()
+    return r.json()
+
+
+async def get_json(
     client: httpx.AsyncClient,
     *,
     url: str,
@@ -34,39 +53,31 @@ async def get_json_with_retries(
     rate_limit: RateLimitPolicy | None = None,
     max_attempts: int = 4,
     start_delay_s: float = 0.7,
+    back_off: int = 2,
 ) -> object:
-    delay = start_delay_s
-    last_exc: Exception | None = None
+    def _on_retry(exc: BaseException, attempt: int, delay_s: float) -> None:
+        logger.warning(
+            "http retry",
+            url=url,
+            attempt=attempt,
+            delay_s=delay_s,
+            error=str(exc),
+        )
 
-    for attempt in range(1, max_attempts + 1):
-        try:
-            if rate_limiter is not None and rate_limit is not None:
-                await rate_limiter.hit(
-                    key=rate_limit.key, limit=rate_limit.limit, window_s=rate_limit.window_s
-                )
+    decorated = Retry(
+        max_attempts=max_attempts,
+        back_off=back_off,
+        start_delay=start_delay_s,
+        exceptions=(RateLimitExceeded, Http429RateLimitedError),
+        on_retry=_on_retry,
+    )(_get_json_once)
 
-            r = await client.get(url, params=params, headers=headers)
-            if r.status_code == 429:
-                raise httpx.HTTPStatusError("429 Too Many Requests", request=r.request, response=r)
-            if 500 <= r.status_code <= 599:
-                raise httpx.HTTPStatusError(f"{r.status_code} Server Error", request=r.request, response=r)
-
-            r.raise_for_status()
-            return r.json()
-
-        except (RateLimitExceeded, httpx.TimeoutException, httpx.HTTPStatusError) as e:
-            last_exc = e
-            if attempt >= max_attempts:
-                break
-            logger.warning(
-                "http retry",
-                url=url,
-                attempt=attempt,
-                error=str(e),
-            )
-            await asyncio.sleep(_jittered_sleep_s(delay))
-            delay *= 2
-
-    assert last_exc is not None
-    raise last_exc
+    return await decorated(
+        client,
+        url=url,
+        params=params,
+        headers=headers,
+        rate_limiter=rate_limiter,
+        rate_limit=rate_limit,
+    )
 
