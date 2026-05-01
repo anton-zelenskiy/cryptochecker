@@ -82,6 +82,9 @@ class ScreenerFeaturesV1(BaseModel):
     base_asset: str
     quote_asset: str
     asof_time_utc: str
+    current_price: float | None = None
+    current_price_time_utc: str | None = None
+    current_price_timeframe: str | None = None
     per_tf_indicators: dict[str, PerTimeframeIndicators] = Field(default_factory=dict)
     per_tf_trend: dict[str, TrendSwingFeature] = Field(default_factory=dict)
     volume: VolumeRegimeFeature | None = None

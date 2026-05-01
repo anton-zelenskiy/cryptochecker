@@ -25,6 +25,7 @@ from project.screener.contracts import (
     TrendBias,
     TrendSwingFeature,
 )
+from project.screener.risk import select_atr, suggest_trade_levels
 from project.screener.fvg_detect import detect_fvgs, distance_pct_to_zone_mid
 from project.screener.scoring import apply_llm_adjustment, score_screener
 from project.screener.trend_structure import aggregate_bias, compute_trend_swing_feature
@@ -41,6 +42,7 @@ TF_HIGHER = ("4h", "1d")
 TF_LOWER = ("15m", "1h")
 TF_ALL = ("15m", "1h", "4h", "1d")
 SOURCES_TRY = ("kucoin", "bybit")
+PRICE_TF_PREFERENCE = ("5m", "15m", "1h")
 
 def _snap_to_per_tf(s: IndicatorSnapshot, tf: str) -> PerTimeframeIndicators:
     return PerTimeframeIndicators(
@@ -88,6 +90,29 @@ async def _resolve_source(*, base: str, quote: str) -> str | None:
     return None
 
 
+async def _resolve_current_price(
+    *,
+    candle_repo: CandleRepository,
+    source: str,
+    base_asset: str,
+    quote_asset: str,
+) -> tuple[float | None, dt.datetime | None, str | None]:
+    for tf in PRICE_TF_PREFERENCE:
+        c = await candle_repo.get_latest(
+            source=source,
+            base_asset=base_asset,
+            quote_asset=quote_asset,
+            timeframe=tf,
+        )
+        if c is None:
+            continue
+        try:
+            return float(c.close), c.open_time_utc, tf
+        except Exception:
+            continue
+    return None, None, None
+
+
 def fallback_decision_from_indicator_snapshot(
     snap: IndicatorSnapshot | None,
 ) -> tuple[str, float, float | None]:
@@ -117,6 +142,13 @@ class ScreenerService:
         candle_repo = CandleRepository()
         per_tf_indicators: dict[str, PerTimeframeIndicators] = {}
         per_tf_trend: dict[str, TrendSwingFeature] = {}
+
+        current_price, current_price_time, current_price_tf = await _resolve_current_price(
+            candle_repo=candle_repo,
+            source=source,
+            base_asset=base_asset,
+            quote_asset=quote_asset,
+        )
 
         for tf in TF_ALL:
             snap = await compute_indicator_bundle_snapshot(
@@ -207,6 +239,9 @@ class ScreenerService:
             base_asset=base_asset,
             quote_asset=quote_asset,
             asof_time_utc=asof.isoformat(),
+            current_price=current_price,
+            current_price_time_utc=current_price_time.isoformat() if current_price_time else None,
+            current_price_timeframe=current_price_tf,
             per_tf_indicators={k: v for k, v in per_tf_indicators.items()},
             per_tf_trend={k: v for k, v in per_tf_trend.items()},
             volume=vol_feat,
@@ -305,6 +340,40 @@ class ScreenerService:
             return 0
 
         reasons = payload.deterministic.reasons[:12]
+
+        notes: dict[str, str] = {}
+        if features.current_price is not None:
+            notes["price"] = f"{features.current_price:g}"
+            if features.current_price_timeframe:
+                notes["price_tf"] = str(features.current_price_timeframe)
+            if features.current_price_time_utc:
+                notes["price_time_utc"] = str(features.current_price_time_utc)
+
+        tpsl_line = ""
+        if payload.final_decision in ("LONG", "SHORT") and features.current_price is not None:
+            atr, atr_tf = select_atr(features)
+            if atr is not None and atr_tf is not None:
+                try:
+                    sug = suggest_trade_levels(
+                        decision=payload.final_decision,
+                        entry=float(features.current_price),
+                        atr=float(atr),
+                        atr_timeframe=atr_tf,
+                        fvg=features.fvg,
+                    )
+                    notes["sl"] = f"{sug.stop_loss:g}"
+                    notes["tp"] = f"{sug.take_profit:g}"
+                    notes["risk_r"] = f"{sug.risk_r:g}"
+                    notes["atr"] = f"{sug.atr_used:g}"
+                    notes["atr_tf"] = str(sug.atr_timeframe)
+                    notes["tpsl_method"] = str(sug.method)
+                    tpsl_line = (
+                        f"price={sug.entry:g} SL={sug.stop_loss:g} TP={sug.take_profit:g} "
+                        f"(R={sug.risk_r:g}, ATR({sug.atr_timeframe})={sug.atr_used:g}, {sug.method})"
+                    )
+                except Exception:
+                    tpsl_line = ""
+
         ai_text = await summarize_with_gemini(
             SignalSummaryInput(
                 symbol=f"{base_asset}/{quote_asset}",
@@ -313,6 +382,7 @@ class ScreenerService:
                 rsi_14=features.per_tf_indicators.get("1h", None).rsi_14
                 if "1h" in features.per_tf_indicators
                 else None,
+                notes=notes or None,
                 screener_final_decision=payload.final_decision,
                 screener_final_confidence=float(payload.final_confidence),
                 screener_reasons=[str(x) for x in reasons],
@@ -324,6 +394,7 @@ class ScreenerService:
             f"{base_asset}/{quote_asset}\n"
             f"decision={payload.final_decision} confidence={payload.final_confidence:.2f}\n"
             + "\n".join(f"- {r}" for r in reasons)
+            + (f"\n{tpsl_line}" if tpsl_line else "")
         )
 
         bot = get_bot()
