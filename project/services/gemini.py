@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
@@ -8,6 +9,7 @@ from dataclasses import asdict, dataclass
 import structlog
 
 from project.core.config import settings
+from project.core.retry import Retry
 from project.core.redis_async import get_redis
 from project.screener.contracts import ScreenerLlmRecheckResult
 
@@ -45,6 +47,42 @@ def _parse_llm_json(text: str) -> dict | None:
         return json.loads(m.group(0))
     except json.JSONDecodeError:
         return None
+
+
+class GeminiRateLimitedError(Exception):
+    pass
+
+
+def _is_gemini_429(exc: BaseException) -> bool:
+    s = str(exc)
+    return "429" in s or "RESOURCE_EXHAUSTED" in s
+
+
+async def _gemini_generate_content_with_retries(*, client: object, model: str, contents: str) -> object:
+    def _on_retry(exc: BaseException, attempt: int, delay_s: float) -> None:
+        logger.warning("gemini retry", attempt=attempt, delay_s=delay_s, error=str(exc))
+
+    async def _once() -> object:
+        try:
+            # SDK call is sync; run in thread to avoid blocking event loop.
+            return await asyncio.to_thread(
+                lambda: client.models.generate_content(  # type: ignore[attr-defined]
+                    model=model,
+                    contents=contents,
+                )
+            )
+        except Exception as e:
+            if _is_gemini_429(e):
+                raise GeminiRateLimitedError(str(e)) from e
+            raise
+
+    return await Retry(
+        max_attempts=4,
+        start_delay=5.0,
+        back_off=4,
+        exceptions=(GeminiRateLimitedError,),
+        on_retry=_on_retry,
+    )(_once)()
 
 
 async def recheck_screener_with_gemini(
@@ -88,7 +126,8 @@ async def recheck_screener_with_gemini(
     )
 
     try:
-        resp = client.models.generate_content(
+        resp = await _gemini_generate_content_with_retries(
+            client=client,
             model="gemini-3-flash-preview",
             contents=prompt,
         )
@@ -150,7 +189,8 @@ async def summarize_with_gemini(data: SignalSummaryInput) -> str | None:
     )
 
     try:
-        resp = client.models.generate_content(
+        resp = await _gemini_generate_content_with_retries(
+            client=client,
             model="gemini-3-flash-preview",
             contents=prompt,
         )
