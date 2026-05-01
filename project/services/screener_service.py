@@ -5,12 +5,12 @@ import datetime as dt
 import structlog
 
 from project.core.config import settings
-from project.core.redis_async import get_redis
 from project.models.candles import Candle
 from project.models.indicators import IndicatorSnapshot
 from project.repositories.catalog import CatalogRepository
 from project.repositories.candles import CandleRepository
 from project.repositories.fvg_zones import FvgZoneRepository
+from project.repositories.notifications import NotificationRepository
 from project.repositories.orderbook_walls import OrderBookWallRepository
 from project.repositories.screener_snapshots import ScreenerSnapshotRepository
 from project.repositories.trade_clusters import TradeClustersRepository
@@ -32,7 +32,6 @@ from project.screener.volume_regime import CandleOHLCV, compute_volume_regime
 from project.services.fundamentals_snapshot_service import fetch_and_store_fundamentals_if_stale
 from project.services.gemini import SignalSummaryInput, recheck_screener_with_gemini, summarize_with_gemini
 from project.services.indicators import compute_indicator_bundle_snapshot
-from project.services.volatility_big_moves import floor_time
 from project.web.bot import get_bot
 
 
@@ -42,9 +41,6 @@ TF_HIGHER = ("4h", "1d")
 TF_LOWER = ("15m", "1h")
 TF_ALL = ("15m", "1h", "4h", "1d")
 SOURCES_TRY = ("kucoin", "bybit")
-
-_SCREENER_NOTIFY_BUCKET_SECONDS = 15 * 60
-
 
 def _snap_to_per_tf(s: IndicatorSnapshot, tf: str) -> PerTimeframeIndicators:
     return PerTimeframeIndicators(
@@ -281,22 +277,25 @@ class ScreenerService:
         if payload.final_confidence < float(settings.SCREENER_NOTIFY_MIN_CONFIDENCE):
             return 0
 
-        bucket = floor_time(
-            dt.datetime.fromisoformat(features.asof_time_utc),
-            seconds=_SCREENER_NOTIFY_BUCKET_SECONDS,
+        # DB dedup: store a single notification marker for market+decision+day.
+        # If it already exists, skip sending (prevents spam and enables compute skipping).
+        asof_dt = dt.datetime.fromisoformat(features.asof_time_utc)
+        bucket_date = asof_dt.date()
+        nrepo = NotificationRepository()
+        inserted = await nrepo.insert_ignore(
+            {
+                "source": features.source,
+                "base_asset": base_asset,
+                "quote_asset": quote_asset,
+                "decision": payload.final_decision,
+                "bucket_date_utc": bucket_date,
+                "asof_time_utc": asof_dt,
+                "channel": "telegram",
+                "chat_id": None,
+            }
         )
-        key = (
-            f"screener:notify:{features.source}:"
-            f"{base_asset}:{quote_asset}:{payload.final_decision}:{bucket.isoformat()}"
-        )
-        try:
-            r = await get_redis()
-            # setnx-like behavior: avoid repeated sends in same bucket/decision
-            created = await r.set(key, "1", ex=6 * 60 * 60, nx=True)
-            if not created:
-                return 0
-        except Exception as e:
-            logger.warning("screener notify redis failed; continuing", error=str(e))
+        if inserted <= 0:
+            return 0
 
         settings_repo = UserSettingsRepository()
         subscribers = await settings_repo.list_market_subscribers(
@@ -475,10 +474,24 @@ class ScreenerService:
         processed = 0
         for base, quote in sorted(markets):
             try:
-                source = await _resolve_source(base=base, quote=quote)
-                if not source:
-                    continue
-                # Compute normally
+                # If we already have a non-WAIT decision that was sent recently,
+                # skip recomputing this market to reduce API load.
+                prev = await ScreenerSnapshotRepository().get_latest_for_market(base_asset=base, quote_asset=quote)
+                if prev and prev.final_decision in ("LONG", "SHORT"):
+                    lookback = dt.datetime.now(dt.timezone.utc) - dt.timedelta(
+                        hours=int(settings.SCREENER_SIGNAL_DEDUP_TTL_HOURS)
+                    )
+                    exists = await NotificationRepository().get_latest_for_market_since(
+                        source=str(prev.source),
+                        base_asset=base,
+                        quote_asset=quote,
+                        decision=str(prev.final_decision),
+                        channel="telegram",
+                        since=lookback,
+                    )
+                    if exists:
+                        continue
+
                 result = await self.compute_and_persist_for_market(
                     base_asset=base,
                     quote_asset=quote,

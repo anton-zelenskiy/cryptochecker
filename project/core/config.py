@@ -75,5 +75,6 @@ class Settings(BaseSettings):
 
     SCREENER_NOTIFICATIONS_ENABLED: bool = True
     SCREENER_NOTIFY_MIN_CONFIDENCE: float = 0.65
+    SCREENER_SIGNAL_DEDUP_TTL_HOURS: int = 24
 
 settings = Settings()
