@@ -34,6 +34,11 @@ celery_app.conf.update(
             "schedule": crontab(minute=28, hour=3),
             # "schedule": crontab(minute="*/1"),
         },
+        "refresh_tracked_fundamentals_snapshots": {
+            "task": "project.tasks.fundamentals.refresh_tracked_fundamentals_snapshots",
+            # "schedule": crontab(minute=12, hour=4),
+            "schedule": crontab(minute="*/1"),
+        },
         # WS trades-only slice: short periodic collector into `market_trades`
         "ingest_tracked_trades_ws": {
             "task": "project.tasks.ws_trades.ingest_tracked_trades_ws",
@@ -65,4 +70,5 @@ import project.tasks.volatility  # noqa: E402, F401
 import project.tasks.orderbook  # noqa: E402, F401
 import project.tasks.trade_clusters  # noqa: E402, F401
 import project.tasks.screener  # noqa: E402, F401
+import project.tasks.fundamentals  # noqa: E402, F401
 

@@ -27,7 +27,7 @@ class CatalogRepository:
             return list(res.scalars().all())
 
     async def get_first_by_symbol(self, *, source: str, symbol: str) -> CatalogCoin | None:
-        sym = symbol.strip().upper()
+        sym = symbol.strip().lower()
         async with sessionmanager.session() as session:
             res = await session.execute(
                 select(CatalogCoin)

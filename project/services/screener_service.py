@@ -30,7 +30,7 @@ from project.screener.fvg_detect import detect_fvgs, distance_pct_to_zone_mid
 from project.screener.scoring import apply_llm_adjustment, score_screener
 from project.screener.trend_structure import aggregate_bias, compute_trend_swing_feature
 from project.screener.volume_regime import CandleOHLCV, compute_volume_regime
-from project.services.fundamentals_snapshot_service import fetch_and_store_fundamentals_if_stale
+from project.services.fundamentals_snapshot_service import get_latest_fundamentals_dict_from_db
 from project.services.gemini import SignalSummaryInput, recheck_screener_with_gemini, summarize_with_gemini
 from project.services.indicators import compute_indicator_bundle_snapshot
 from project.web.bot import get_bot
@@ -494,10 +494,7 @@ class ScreenerService:
         cat = await CatalogRepository().get_first_by_symbol(source="coingecko", symbol=base_asset)
         if not cat:
             return FundamentalsFeature(coingecko_id=None, tvl_unavailable=True)
-        data = await fetch_and_store_fundamentals_if_stale(
-            coingecko_id=cat.coingecko_id,
-            base_symbol=base_asset,
-        )
+        data = await get_latest_fundamentals_dict_from_db(coingecko_id=cat.coingecko_id)
         if not data:
             return FundamentalsFeature(coingecko_id=cat.coingecko_id, tvl_unavailable=True)
         return FundamentalsFeature(
