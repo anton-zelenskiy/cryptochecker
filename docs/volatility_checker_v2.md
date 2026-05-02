@@ -18,7 +18,6 @@ This doc is a living TODO list. Items marked **[x]** are already implemented in 
 - **Tracked universe** comes from `user_tracked_assets` (per Telegram user).
 - **Candles** are ingested periodically into `candles` (Timescale hypertable).
 - **Catalog** is refreshed into `catalog_coins` and stablecoins are filtered.
-- **Coin metadata** (`platforms`/contracts) is stored in `coin_metadata` via nightly batch.
 - **Microstructure slice** exists as a first step: WS **trades-only** into `market_trades`.
 
 ## Volatility Checker v2: detection (proposal)
@@ -68,7 +67,6 @@ When volatility triggers:
 
 - [x] Catalog refresh (top-300 non-stablecoins)
 - [x] Market rank adapter with fallback when CoinGecko returns 429 (CoinGecko → CoinPaprika)
-- [x] `coin_metadata` table + nightly batch for platforms/contracts
 - [ ] Normalize catalog IDs across providers (fallback catalog rows are not CoinGecko IDs)
 
 ### Market data

@@ -3,13 +3,8 @@ from __future__ import annotations
 import pytest
 
 from project.services import catalog as catalog_module
-from project.services.stablecoins import STABLE_SYMBOL_DENYLIST
 from project.marketdata.dto import RankedCoin
 from project.marketdata.exceptions import ProviderRateLimited
-
-
-def test_stable_symbols_filtered_from_row_building() -> None:
-    assert "usdt" in STABLE_SYMBOL_DENYLIST
 
 
 @pytest.mark.asyncio

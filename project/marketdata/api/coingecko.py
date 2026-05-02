@@ -7,9 +7,9 @@ from project.core.caches import cached_method
 from project.core.config import settings
 from project.core.http_client import RateLimitPolicy, get_json
 from project.core.rate_limit_provider import get_rate_limiter
+from project.marketdata.coingecko_categories import coingecko_row_has_stablecoins_category
 from project.marketdata.dto import RankedCoin
 from project.marketdata.exceptions import ProviderRateLimited
-from project.services.stablecoins import STABLE_SYMBOL_DENYLIST
 
 
 logger = structlog.get_logger(__name__)
@@ -138,7 +138,7 @@ class CoinGeckoApi:
                 if not cid or cid in seen:
                     continue
                 symbol = str(coin.get("symbol", "")).lower()
-                if symbol in STABLE_SYMBOL_DENYLIST:
+                if coingecko_row_has_stablecoins_category(coin):
                     continue
                 name = str(coin.get("name", ""))[:128] or cid
                 rank = coin.get("market_cap_rank")

@@ -70,10 +70,12 @@ async def fetch_and_store_fundamentals_if_stale(
 
     payload = await CoinGeckoApi().get_coin_with_market_data(coin_id=coingecko_id)
     if not payload:
+        logger.warning("no payload from coingecko", coingecko_id=coingecko_id)
         return None
 
     md = payload.get("market_data")
     if not isinstance(md, dict):
+        logger.warning("no market data from coingecko", coingecko_id=coingecko_id)
         return None
 
     mcap = _parse_usd(md.get("market_cap"))

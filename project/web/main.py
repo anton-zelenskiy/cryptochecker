@@ -9,7 +9,6 @@ from fastapi import FastAPI
 from project.core.config import settings
 from project.models import candles as _candles  # noqa: F401
 from project.models import catalog as _catalog  # noqa: F401
-from project.models import coin_metadata as _coin_metadata  # noqa: F401
 from project.models import indicators as _indicators  # noqa: F401
 from project.models import market_trades as _market_trades  # noqa: F401
 from project.models import orderbook_walls as _orderbook_walls  # noqa: F401

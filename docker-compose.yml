@@ -27,6 +27,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - cryptochecker
     restart: on-failure
@@ -56,3 +58,6 @@ networks:
   cryptochecker:
   nginx-bot_reverse_proxy:
     external: true
+
+volumes:
+  postgres_data:
