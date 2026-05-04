@@ -290,7 +290,9 @@ class BybitApi:
                 headers=headers,
                 rate_limiter=rate_limiter,
                 rate_limit=rate,
-                max_attempts=3,
+                max_attempts=10,
+                start_delay_s=3.0,
+                back_off=3,
             )
 
         result_obj = payload.get("result") if isinstance(payload, dict) else None
