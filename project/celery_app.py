@@ -3,10 +3,12 @@ from __future__ import annotations
 from celery import Celery
 from celery.schedules import crontab
 
+from project.celery_exclusive_task import ExclusivePerTaskNameRedisTask
 from project.core.config import settings
 
 
 celery_app = Celery("cryptochecker")
+celery_app.Task = ExclusivePerTaskNameRedisTask
 celery_app.conf.update(
     broker_url=settings.REDIS_URL,
     result_backend=settings.REDIS_URL,
@@ -17,16 +19,16 @@ celery_app.conf.update(
         # Ingest candles tail for tracked assets
         "ingest_candles": {
             "task": "project.tasks.marketdata.ingest_tracked_candles",
-            "schedule": crontab(minute="*/1"),
+            "schedule": crontab(minute="*/5"),
         },
         "run_screener_v2": {
             "task": "project.tasks.screener.run_screener_v2",
-            "schedule": crontab(minute="*/1"),
+            "schedule": crontab(minute="*/5"),
         },
         # Paper trading simulation refresh
         "paper_trading_tick": {
             "task": "project.tasks.paper_trading.paper_trading_tick",
-            "schedule": crontab(minute="*/1"),
+            "schedule": crontab(minute="*/5"),
         },
         # CoinGecko top catalog (plan §1): refresh a few times per day, staggered from ingest
         "refresh_catalog_top300": {
@@ -36,8 +38,8 @@ celery_app.conf.update(
         },
         "refresh_tracked_fundamentals_snapshots": {
             "task": "project.tasks.fundamentals.refresh_tracked_fundamentals_snapshots",
-            # "schedule": crontab(minute=12, hour=4),
-            "schedule": crontab(minute="*/1"),
+            "schedule": crontab(minute=12, hour=4),
+            # "schedule": crontab(minute="*/1"),
         },
         # WS trades-only slice: short periodic collector into `market_trades`
         "ingest_tracked_trades_ws": {

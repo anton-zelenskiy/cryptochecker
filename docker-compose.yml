@@ -35,7 +35,7 @@ services:
   worker:
     image: ${GHCR_IMAGE:-cryptochecker:local}
     build: .
-    command: celery -A project.celery_app:celery_app worker --pool=solo -l info -Q default
+    command: celery -A project.celery_app:celery_app worker -l info -Q default
     env_file:
       - .env
     depends_on:

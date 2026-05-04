@@ -30,6 +30,23 @@ class PaperTradeRepository:
             )
             return res.scalar_one_or_none()
 
+    async def get_latest_open_trade_for_market(
+        self,
+        *,
+        base_asset: str,
+        quote_asset: str,
+    ) -> PaperTrade | None:
+        async with sessionmanager.session() as session:
+            res = await session.execute(
+                select(PaperTrade)
+                .where(PaperTrade.base_asset == base_asset)
+                .where(PaperTrade.quote_asset == quote_asset)
+                .where(PaperTrade.exit_time_utc.is_(None))
+                .order_by(PaperTrade.entry_time_utc.desc())
+                .limit(1)
+            )
+            return res.scalar_one_or_none()
+
     async def close_trade(
         self,
         trade_id: int,
@@ -37,6 +54,7 @@ class PaperTradeRepository:
         exit_time_utc: dt.datetime,
         exit_price: float,
         pnl_pct: float,
+        exit_reason: str | None = None,
     ) -> None:
         async with sessionmanager.session() as session:
             res = await session.execute(select(PaperTrade).where(PaperTrade.id == trade_id))
@@ -46,6 +64,8 @@ class PaperTradeRepository:
             trade.exit_time_utc = exit_time_utc
             trade.exit_price = float(exit_price)
             trade.pnl_pct = float(pnl_pct)
+            if exit_reason is not None:
+                trade.exit_reason = exit_reason
             await session.commit()
 
     async def open_trade(
@@ -58,7 +78,15 @@ class PaperTradeRepository:
         side: str,
         entry_time_utc: dt.datetime,
         entry_price: float,
-        hold_candles: int,
+        hold_candles: int | None = None,
+        stop_loss: float | None = None,
+        take_profit: float | None = None,
+        risk_r: float | None = None,
+        atr_used: float | None = None,
+        atr_timeframe: str | None = None,
+        tpsl_method: str | None = None,
+        confidence_at_entry: float | None = None,
+        screener_snapshot_id: int | None = None,
     ) -> PaperTrade:
         async with sessionmanager.session() as session:
             trade = PaperTrade(
@@ -69,10 +97,17 @@ class PaperTradeRepository:
                 side=side,
                 entry_time_utc=entry_time_utc,
                 entry_price=float(entry_price),
-                hold_candles=int(hold_candles),
+                hold_candles=hold_candles,
+                stop_loss=float(stop_loss) if stop_loss is not None else None,
+                take_profit=float(take_profit) if take_profit is not None else None,
+                risk_r=float(risk_r) if risk_r is not None else None,
+                atr_used=float(atr_used) if atr_used is not None else None,
+                atr_timeframe=atr_timeframe,
+                tpsl_method=tpsl_method,
+                confidence_at_entry=float(confidence_at_entry) if confidence_at_entry is not None else None,
+                screener_snapshot_id=screener_snapshot_id,
             )
             session.add(trade)
             await session.commit()
             await session.refresh(trade)
             return trade
-

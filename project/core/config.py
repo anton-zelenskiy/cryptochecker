@@ -59,6 +59,9 @@ class Settings(BaseSettings):
         auth = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
         return f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
+    CELERY_EXCLUSIVE_TASK_LOCK_PREFIX: str = "celery:exclusive:task"
+    CELERY_EXCLUSIVE_LOCK_TIMEOUT_SEC: int = 7200
+
     BACKEND_CORS_ORIGINS: list[str] = [
         'http://localhost:8000',
         'https://tidy-simply-camel.ngrok-free.app',
@@ -76,5 +79,12 @@ class Settings(BaseSettings):
     SCREENER_NOTIFICATIONS_ENABLED: bool = True
     SCREENER_NOTIFY_MIN_CONFIDENCE: float = 0.65
     SCREENER_SIGNAL_DEDUP_TTL_HOURS: int = 24
+
+    PAPER_TRADING_ENABLED: bool = True
+    PAPER_TRADING_MIN_CONFIDENCE: float = 0.65
+    PAPER_TRADING_FLIP_MIN_CONFIDENCE: float = 0.70
+    PAPER_TRADING_MAX_SNAPSHOT_AGE_MINUTES: int = 5
+    PAPER_TRADING_EXIT_SCAN_TIMEFRAME: str = "5m"
+
 
 settings = Settings()

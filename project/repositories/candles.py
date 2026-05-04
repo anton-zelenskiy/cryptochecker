@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 
 from project.core.db_session import sessionmanager
 from project.models.candles import Candle
@@ -90,6 +90,31 @@ class CandleRepository:
                 .limit(1)
             )
             return res.scalar_one_or_none()
+
+    async def list_from_open_time_asc(
+        self,
+        *,
+        source: str,
+        base_asset: str,
+        quote_asset: str,
+        timeframe: str,
+        open_time_from_utc: object,
+        limit: int = 500,
+    ) -> list[Candle]:
+        if limit <= 0:
+            return []
+        async with sessionmanager.session() as session:
+            res = await session.execute(
+                select(Candle)
+                .where(Candle.source == source)
+                .where(Candle.base_asset == base_asset)
+                .where(Candle.quote_asset == quote_asset)
+                .where(Candle.timeframe == timeframe)
+                .where(Candle.open_time_utc >= open_time_from_utc)
+                .order_by(Candle.open_time_utc.asc())
+                .limit(int(limit))
+            )
+            return list(res.scalars().all())
 
     async def list_latest_n(
         self,
