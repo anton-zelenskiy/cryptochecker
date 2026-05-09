@@ -54,7 +54,7 @@ celery_app.conf.update(
         # WS orderbook (L2) probe: detect support-side walls from first snapshots
         "ingest_tracked_orderbook_walls": {
             "task": "project.tasks.orderbook.ingest_tracked_orderbook_walls",
-            "schedule": crontab(minute="*/2"),
+            "schedule": crontab(minute="*/1"),
         },
         # Large buy clustering over recent WS trades
         "cluster_recent_large_buys": {

@@ -60,7 +60,7 @@ class Settings(BaseSettings):
         return f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     CELERY_EXCLUSIVE_TASK_LOCK_PREFIX: str = "celery:exclusive:task"
-    CELERY_EXCLUSIVE_LOCK_TIMEOUT_SEC: int = 7200
+    CELERY_EXCLUSIVE_LOCK_TIMEOUT_SEC: int = 60 * 10
 
     BACKEND_CORS_ORIGINS: list[str] = [
         'http://localhost:8000',

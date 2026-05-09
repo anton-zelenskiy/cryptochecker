@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import BotCommand, Message
 
 from project.core.config import settings
 from project.repositories.indicators import IndicatorSnapshotRepository
@@ -11,10 +11,33 @@ from project.repositories.users import (
     UserSettingsRepository,
     UserTrackedAssetRepository,
 )
-from project.services.gemini import SignalSummaryInput, summarize_with_gemini
+from project.marketdata.api.gemini import SignalSummaryInput, summarize_with_gemini
 
 
 router = Router()
+
+_BOT_COMMAND_SPECS: tuple[tuple[str, str], ...] = (
+    ("start", "Register and get started"),
+    ("help", "List commands"),
+    ("track", "Track a market: /track BTC (BTC/USDT)"),
+    ("untrack", "Stop tracking: /untrack BTC"),
+    ("list", "Show tracked markets"),
+    ("summary", "AI summary: /summary BTC"),
+)
+
+# Paste into BotFather: @BotFather → /setcommands → pick bot → send the block below (no leading slashes).
+TELEGRAM_BOT_COMMANDS_FOR_SETTINGS = "\n".join(f"{cmd} - {desc}" for cmd, desc in _BOT_COMMAND_SPECS)
+
+
+def format_bot_help_text() -> str:
+    lines = ["<b>Commands</b>"] + [f"/{cmd} - {desc}" for cmd, desc in _BOT_COMMAND_SPECS]
+    return "\n".join(lines)
+
+
+async def setup_telegram_bot_commands(bot: Bot) -> None:
+    await bot.set_my_commands(
+        [BotCommand(command=c, description=d) for c, d in _BOT_COMMAND_SPECS],
+    )
 
 
 def get_bot() -> Bot:
@@ -35,7 +58,15 @@ async def start(message: Message) -> None:
     settings_repo = UserSettingsRepository()
     user = await user_repo.get_or_create(int(message.from_user.id))
     await settings_repo.get_or_create_for_user(user.id)
-    await message.answer("CryptoChecker bot is running. Use /track BTC to track.")
+    await message.answer(
+        "CryptoChecker is running.\n\n" + format_bot_help_text(),
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("help"))
+async def help_cmd(message: Message) -> None:
+    await message.answer(format_bot_help_text(), parse_mode="HTML")
 
 
 @router.message(Command("track"))
@@ -111,13 +142,19 @@ async def summary(message: Message) -> None:
             decision=decision,
             confidence=confidence,
             rsi_14=snap.rsi_14,
-        )
+            macd_hist=snap.macd_hist,
+            adx_14=snap.adx_14,
+        ),
+        model="gemini-3.1-flash-lite-preview",
     )
 
     if ai_text:
         await message.answer(ai_text)
     else:
-        await message.answer(f"{asset}/USDT: decision={decision}, confidence={confidence:.2f}, rsi14={snap.rsi_14}")
+        await message.answer(
+            f"{asset}/USDT: decision={decision}, confidence={confidence:.2f}, "
+            f"rsi14={snap.rsi_14} macd_hist={snap.macd_hist} adx14={snap.adx_14}"
+        )
 
 
 def build_bot() -> tuple[Bot, Dispatcher]:

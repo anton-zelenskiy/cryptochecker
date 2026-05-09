@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert
 
 from project.core.repository import BaseRepository
 from project.models.users import TelegramUser, UserSettings, UserTrackedAsset
@@ -80,13 +81,33 @@ class UserTrackedAssetRepository(BaseRepository[UserTrackedAsset]):
             )
             return [(str(b), str(q)) for b, q in res.all()]
 
-    async def add_asset(self, user_id: int, base_asset: str, quote_asset: str = "USDT") -> UserTrackedAsset:
-        return await self.create(
-            user_id=user_id,
-            base_asset=base_asset.upper(),
-            quote_asset=quote_asset.upper(),
-            enabled=True,
-        )
+    async def add_asset(
+        self,
+        user_id: int,
+        base_asset: str,
+        quote_asset: str = "USDT",
+    ) -> UserTrackedAsset:
+        base = base_asset.upper()
+        quote = quote_asset.upper()
+
+        async with self._sessionmanager.session() as session:
+            stmt = (
+                insert(UserTrackedAsset)
+                .values(
+                    user_id=user_id,
+                    base_asset=base,
+                    quote_asset=quote,
+                    enabled=True,
+                )
+                .on_conflict_do_update(
+                    constraint="uq_user_tracked_asset",
+                    set_={"enabled": True},
+                )
+                .returning(UserTrackedAsset)
+            )
+            res = await session.execute(stmt)
+            await session.commit()
+            return res.scalar_one()
 
     async def remove_asset(self, user_id: int, base_asset: str, quote_asset: str = "USDT") -> int:
         async with self._sessionmanager.session() as session:

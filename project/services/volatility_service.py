@@ -10,7 +10,7 @@ from project.repositories.indicators import IndicatorSnapshotRepository
 from project.repositories.screener_snapshots import ScreenerSnapshotRepository
 from project.repositories.users import UserSettingsRepository, UserTrackedAssetRepository
 from project.repositories.volatility_events import VolatilityEventRepository
-from project.services.gemini import SignalSummaryInput, summarize_with_gemini
+from project.marketdata.api.gemini import SignalSummaryInput, summarize_with_gemini
 from project.services.screener_service import fallback_decision_from_indicator_snapshot
 from project.services.volatility_big_moves import (
     compute_big_move_metrics,
@@ -23,17 +23,27 @@ from project.web.bot import get_bot
 logger = structlog.get_logger(__name__)
 
 
-def _rsi_from_screener_features(features: dict | None) -> float | None:
+def _core_indicators_from_screener_features(
+    features: dict | None,
+) -> tuple[float | None, float | None, float | None]:
     if not isinstance(features, dict):
-        return None
+        return (None, None, None)
     per = features.get("per_tf_indicators")
     if not isinstance(per, dict):
-        return None
+        return (None, None, None)
     for k in ("1h", "15m", "4h", "5m"):
         block = per.get(k)
-        if isinstance(block, dict) and block.get("rsi_14") is not None:
-            return float(block["rsi_14"])
-    return None
+        if not isinstance(block, dict) or block.get("rsi_14") is None:
+            continue
+        rsi = float(block["rsi_14"])
+        mh = block.get("macd_hist")
+        adx = block.get("adx_14")
+        return (
+            rsi,
+            float(mh) if mh is not None else None,
+            float(adx) if adx is not None else None,
+        )
+    return (None, None, None)
 
 
 class VolatilityService:
@@ -109,10 +119,12 @@ class VolatilityService:
 
                 scr = await screener_repo.get_latest_for_market(base_asset=base, quote_asset=quote)
                 rsi_for_msg: float | None = None
+                macd_for_msg: float | None = None
+                adx_for_msg: float | None = None
                 if scr and (now - scr.computed_at).total_seconds() < 45 * 60:
                     decision_str = scr.final_decision
                     decision_conf = float(scr.final_confidence)
-                    rsi_for_msg = _rsi_from_screener_features(scr.features)
+                    rsi_for_msg, macd_for_msg, adx_for_msg = _core_indicators_from_screener_features(scr.features)
                     reasons = scr.reasons if isinstance(scr.reasons, list) else []
                     ai_text = await summarize_with_gemini(
                         SignalSummaryInput(
@@ -120,6 +132,8 @@ class VolatilityService:
                             decision=decision_str,
                             confidence=decision_conf,
                             rsi_14=rsi_for_msg,
+                            macd_hist=macd_for_msg,
+                            adx_14=adx_for_msg,
                             screener_final_decision=scr.final_decision,
                             screener_final_confidence=float(scr.final_confidence),
                             screener_reasons=[str(x) for x in reasons[:12]],
@@ -132,19 +146,24 @@ class VolatilityService:
                         source=source_used, base_asset=base, quote_asset=quote, timeframe=timeframe
                     )
                     decision_str, decision_conf, rsi_for_msg = fallback_decision_from_indicator_snapshot(snap)
+                    macd_for_msg = float(snap.macd_hist) if snap and snap.macd_hist is not None else None
+                    adx_for_msg = float(snap.adx_14) if snap and snap.adx_14 is not None else None
                     ai_text = await summarize_with_gemini(
                         SignalSummaryInput(
                             symbol=f"{base}/{quote}",
                             decision=decision_str,
                             confidence=decision_conf,
                             rsi_14=rsi_for_msg,
+                            macd_hist=macd_for_msg,
+                            adx_14=adx_for_msg,
                         )
                     )
 
                 direction = "UP" if metrics.pct_change >= 0 else "DOWN"
                 base_text = (
                     f"{base}/{quote} {direction} {metrics.pct_change:.2f}% (range {metrics.range_pct:.2f}%)\n"
-                    f"decision={decision_str} confidence={decision_conf:.2f} rsi14={rsi_for_msg}"
+                    f"decision={decision_str} confidence={decision_conf:.2f} "
+                    f"rsi14={rsi_for_msg} macd_hist={macd_for_msg} adx14={adx_for_msg}"
                 )
                 text = ai_text or base_text
 

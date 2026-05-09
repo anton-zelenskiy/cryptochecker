@@ -18,7 +18,7 @@ from project.models import users as _users  # noqa: F401
 from project.models import volatility_events as _vol_events  # noqa: F401
 from project.models import screener as _screener  # noqa: F401
 from project.models import notifications as _notifications  # noqa: F401
-from project.web.bot import build_bot
+from project.web.bot import build_bot, setup_telegram_bot_commands
 from project.web.api.router import api_router
 
 
@@ -28,6 +28,10 @@ logger = structlog.get_logger(__name__)
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     bot = app.state.bot
+    try:
+        await setup_telegram_bot_commands(bot)
+    except Exception as e:
+        logger.warning("telegram set_my_commands failed", error=str(e))
 
     yield
 

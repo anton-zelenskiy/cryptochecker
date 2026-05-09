@@ -6,6 +6,7 @@ import json
 import time
 
 import httpx
+import structlog
 import websockets
 
 from project.core.config import settings
@@ -15,6 +16,7 @@ from project.marketdata.api.ws_common import parse_orderbook_levels, parse_ts_ms
 from project.marketdata.dto import NormalizedCandle, NormalizedMarket
 from project.marketdata.timeframes import normalize_timeframe
 
+logger = structlog.get_logger(__name__)
 
 KUCOIN_SPOT_PUSH_WS_URL = "wss://x-push-spot.kucoin.com"
 KUCOIN_CANDLES_URL = "https://api.kucoin.com/api/v1/market/candles"
@@ -46,6 +48,10 @@ async def collect_orderbook_walls_for_markets(
     duration_s: float = 20.0,
     max_markets: int = 10,
     extra_headers: dict[str, str] | None = None,
+    min_notional_quote_by_sym: dict[str, float] | None = None,
+    qty_vs_median_multiplier_by_sym: dict[str, float] | None = None,
+    default_min_notional_quote: float = 20_000.0,
+    default_qty_vs_median_multiplier: float = 6.0,
 ) -> list[dict]:
     if not markets:
         return []
@@ -58,91 +64,109 @@ async def collect_orderbook_walls_for_markets(
     started = asyncio.get_running_loop().time()
     done_syms: set[str] = set()
 
-    async with websockets.connect(
-        KUCOIN_SPOT_PUSH_WS_URL,
-        ping_interval=20,
-        ping_timeout=20,
-        additional_headers=extra_headers,
-    ) as ws:
-        for topic in topics:
-            await ws.send(
-                json.dumps(
+    with structlog.contextvars.bound_contextvars(
+        source="kucoin",
+        method="collect_orderbook_walls_for_markets",
+    ):
+
+        async with websockets.connect(
+            KUCOIN_SPOT_PUSH_WS_URL,
+            ping_interval=20,
+            ping_timeout=20,
+            additional_headers=extra_headers,
+        ) as ws:
+            for topic in topics:
+                await ws.send(
+                    json.dumps(
+                        {
+                            "id": int(time.time() * 1000),
+                            "type": "subscribe",
+                            "topic": topic,
+                            "response": True,
+                        }
+                    )
+                )
+
+            while True:
+                if len(done_syms) >= len(sub_markets):
+                    break
+                elapsed = asyncio.get_running_loop().time() - started
+                if elapsed >= duration_s:
+                    break
+
+                try:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=min(1.0, max(0.01, duration_s - elapsed)))
+                except asyncio.TimeoutError:
+                    continue
+
+                try:
+                    msg = json.loads(raw)
+                except Exception:
+                    continue
+
+                if str(msg.get("type", "")).lower() != "message":
+                    continue
+
+                topic = msg.get("topic")
+                if not isinstance(topic, str) or not topic.startswith("/spotMarket/level2Depth50:"):
+                    continue
+
+                sym = topic.removeprefix("/spotMarket/level2Depth50:")
+                sym_key = sym.upper()
+                if sym_key in done_syms:
+                    continue
+
+                market = markets_by_sym.get(sym_key)
+                if market is None:
+                    continue
+
+                data = msg.get("data")
+                if not isinstance(data, dict):
+                    continue
+
+                bids = parse_orderbook_levels(data.get("bids"))
+                min_notional_quote = default_min_notional_quote
+                if min_notional_quote_by_sym is not None:
+                    min_notional_quote = float(min_notional_quote_by_sym.get(sym_key, min_notional_quote))
+                qty_vs_median_multiplier = default_qty_vs_median_multiplier
+                if qty_vs_median_multiplier_by_sym is not None:
+                    qty_vs_median_multiplier = float(
+                        qty_vs_median_multiplier_by_sym.get(sym_key, qty_vs_median_multiplier)
+                    )
+
+                picked = pick_support_wall(
+                    bids,
+                    min_notional_quote=min_notional_quote,
+                    qty_vs_median_multiplier=qty_vs_median_multiplier,
+                )
+                if not picked:
+                    done_syms.add(sym_key)
+                    continue
+
+                wall_price, wall_qty, wall_notional, best_bid, median_qty = picked
+                ts_ms = parse_ts_ms(data.get("timestamp")) or parse_ts_ms(data.get("ts"))
+                if ts_ms is None:
+                    bucket = dt.datetime.now(dt.timezone.utc)
+                else:
+                    bucket = dt.datetime.fromtimestamp(ts_ms / 1000, tz=dt.timezone.utc)
+
+                rows.append(
                     {
-                        "id": int(time.time() * 1000),
-                        "type": "subscribe",
-                        "topic": topic,
-                        "response": True,
+                        "source": "kucoin",
+                        "base_asset": market.base_asset.upper(),
+                        "quote_asset": market.quote_asset.upper(),
+                        "bucket_time_utc": bucket,
+                        "wall_price": float(wall_price),
+                        "wall_qty": float(wall_qty),
+                        "wall_notional_quote": float(wall_notional),
+                        "best_bid": float(best_bid),
+                        "median_bid_qty": float(median_qty),
+                        "detected_at": dt.datetime.now(dt.timezone.utc),
                     }
                 )
-            )
-
-        while True:
-            if len(done_syms) >= len(sub_markets):
-                break
-            elapsed = asyncio.get_running_loop().time() - started
-            if elapsed >= duration_s:
-                break
-
-            try:
-                raw = await asyncio.wait_for(ws.recv(), timeout=min(1.0, max(0.01, duration_s - elapsed)))
-            except asyncio.TimeoutError:
-                continue
-
-            try:
-                msg = json.loads(raw)
-            except Exception:
-                continue
-
-            if str(msg.get("type", "")).lower() != "message":
-                continue
-
-            topic = msg.get("topic")
-            if not isinstance(topic, str) or not topic.startswith("/spotMarket/level2Depth50:"):
-                continue
-
-            sym = topic.removeprefix("/spotMarket/level2Depth50:")
-            sym_key = sym.upper()
-            if sym_key in done_syms:
-                continue
-
-            market = markets_by_sym.get(sym_key)
-            if market is None:
-                continue
-
-            data = msg.get("data")
-            if not isinstance(data, dict):
-                continue
-
-            bids = parse_orderbook_levels(data.get("bids"))
-            picked = pick_support_wall(bids)
-            if not picked:
                 done_syms.add(sym_key)
-                continue
 
-            wall_price, wall_qty, wall_notional, best_bid, median_qty = picked
-            ts_ms = parse_ts_ms(data.get("timestamp")) or parse_ts_ms(data.get("ts"))
-            if ts_ms is None:
-                bucket = dt.datetime.now(dt.timezone.utc)
-            else:
-                bucket = dt.datetime.fromtimestamp(ts_ms / 1000, tz=dt.timezone.utc)
-
-            rows.append(
-                {
-                    "source": "kucoin",
-                    "base_asset": market.base_asset.upper(),
-                    "quote_asset": market.quote_asset.upper(),
-                    "bucket_time_utc": bucket,
-                    "wall_price": float(wall_price),
-                    "wall_qty": float(wall_qty),
-                    "wall_notional_quote": float(wall_notional),
-                    "best_bid": float(best_bid),
-                    "median_bid_qty": float(median_qty),
-                    "detected_at": dt.datetime.now(dt.timezone.utc),
-                }
-            )
-            done_syms.add(sym_key)
-
-    return rows
+        return rows
 
 
 class KuCoinApi:
@@ -190,7 +214,7 @@ class KuCoinApi:
         }
 
         rate_limiter = await get_rate_limiter()
-        rate = RateLimitPolicy(key="ratelimit:kucoin:candles", limit=20, window_s=60)
+        rate = RateLimitPolicy(key="ratelimit:kucoin:candles", limit=200, window_s=60)
         headers = self._headers()
 
         async with httpx.AsyncClient(timeout=45.0) as client:

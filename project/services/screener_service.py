@@ -31,7 +31,11 @@ from project.screener.scoring import apply_llm_adjustment, score_screener
 from project.screener.trend_structure import aggregate_bias, compute_trend_swing_feature
 from project.screener.volume_regime import CandleOHLCV, compute_volume_regime
 from project.services.fundamentals_snapshot_service import get_latest_fundamentals_dict_from_db
-from project.services.gemini import SignalSummaryInput, recheck_screener_with_gemini, summarize_with_gemini
+from project.marketdata.api.gemini import (
+    SignalSummaryInput,
+    recheck_screener_with_gemini,
+    summarize_with_gemini,
+)
 from project.services.indicators import compute_indicator_bundle_snapshot
 from project.web.bot import get_bot
 
@@ -374,14 +378,15 @@ class ScreenerService:
                 except Exception:
                     tpsl_line = ""
 
+        ind_1h = features.per_tf_indicators.get("1h") if "1h" in features.per_tf_indicators else None
         ai_text = await summarize_with_gemini(
             SignalSummaryInput(
                 symbol=f"{base_asset}/{quote_asset}",
                 decision=payload.final_decision,
                 confidence=float(payload.final_confidence),
-                rsi_14=features.per_tf_indicators.get("1h", None).rsi_14
-                if "1h" in features.per_tf_indicators
-                else None,
+                rsi_14=ind_1h.rsi_14 if ind_1h else None,
+                macd_hist=ind_1h.macd_hist if ind_1h else None,
+                adx_14=ind_1h.adx_14 if ind_1h else None,
                 notes=notes or None,
                 screener_final_decision=payload.final_decision,
                 screener_final_confidence=float(payload.final_confidence),

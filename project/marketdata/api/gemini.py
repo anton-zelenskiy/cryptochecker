@@ -4,17 +4,23 @@ import asyncio
 import hashlib
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
 import structlog
 
 from project.core.config import settings
-from project.core.retry import Retry
 from project.core.redis_async import get_redis
+from project.core.retry import Retry
 from project.screener.contracts import ScreenerLlmRecheckResult
 
 
 logger = structlog.get_logger(__name__)
+
+DEFAULT_GEMINI_MODELS: tuple[str, ...] = (
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3-flash-preview",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +29,8 @@ class SignalSummaryInput:
     decision: str  # LONG/SHORT/WAIT
     confidence: float
     rsi_14: float | None = None
+    macd_hist: float | None = None
+    adx_14: float | None = None
     notes: dict[str, str] | None = None
     screener_final_decision: str | None = None
     screener_final_confidence: float | None = None
@@ -60,11 +68,10 @@ def _is_gemini_429(exc: BaseException) -> bool:
 
 async def _gemini_generate_content_with_retries(*, client: object, model: str, contents: str) -> object:
     def _on_retry(exc: BaseException, attempt: int, delay_s: float) -> None:
-        logger.warning("gemini retry", attempt=attempt, delay_s=delay_s, error=str(exc))
+        logger.warning("gemini retry", model=model, attempt=attempt, delay_s=delay_s, error=str(exc))
 
     async def _once() -> object:
         try:
-            # SDK call is sync; run in thread to avoid blocking event loop.
             return await asyncio.to_thread(
                 lambda: client.models.generate_content(  # type: ignore[attr-defined]
                     model=model,
@@ -83,6 +90,33 @@ async def _gemini_generate_content_with_retries(*, client: object, model: str, c
         exceptions=(GeminiRateLimitedError,),
         on_retry=_on_retry,
     )(_once)()
+
+
+async def _gemini_generate_content_with_model_fallback(
+    *,
+    client: object,
+    contents: str,
+    models: Sequence[str] | None = None,
+) -> object:
+    chain = tuple(models) if models else DEFAULT_GEMINI_MODELS
+    last: GeminiRateLimitedError | None = None
+    for i, model in enumerate(chain):
+        try:
+            return await _gemini_generate_content_with_retries(
+                client=client, model=model, contents=contents
+            )
+        except GeminiRateLimitedError as e:
+            last = e
+            if i + 1 < len(chain):
+                logger.warning(
+                    "gemini rate limited, falling back to next model",
+                    from_model=model,
+                    to_model=chain[i + 1],
+                    error=str(e),
+                )
+    if last:
+        raise last
+    raise RuntimeError("gemini model chain is empty")
 
 
 async def recheck_screener_with_gemini(
@@ -126,11 +160,7 @@ async def recheck_screener_with_gemini(
     )
 
     try:
-        resp = await _gemini_generate_content_with_retries(
-            client=client,
-            model="gemini-3-flash-preview",
-            contents=prompt,
-        )
+        resp = await _gemini_generate_content_with_model_fallback(client=client, contents=prompt)
         text = getattr(resp, "text", None)
         if not text:
             return None
@@ -163,7 +193,7 @@ async def recheck_screener_with_gemini(
     return out
 
 
-async def summarize_with_gemini(data: SignalSummaryInput) -> str | None:
+async def summarize_with_gemini(data: SignalSummaryInput, model: str | None = None) -> str | None:
     """
     Best-effort Gemini summary.
     Returns None if API key is missing or call fails.
@@ -174,7 +204,6 @@ async def summarize_with_gemini(data: SignalSummaryInput) -> str | None:
         logger.warning("gemini sdk unavailable", error=str(e))
         return None
 
-    # Client reads GEMINI_API_KEY / GOOGLE_API_KEY from env by default.
     try:
         client = genai.Client()
     except Exception as e:
@@ -189,14 +218,13 @@ async def summarize_with_gemini(data: SignalSummaryInput) -> str | None:
     )
 
     try:
-        resp = await _gemini_generate_content_with_retries(
+        resp = await _gemini_generate_content_with_model_fallback(
             client=client,
-            model="gemini-3-flash-preview",
             contents=prompt,
+            models=[model] if model else None,
         )
         text = getattr(resp, "text", None)
         return str(text).strip() if text else None
     except Exception as e:
         logger.warning("gemini call failed", error=str(e))
         return None
-

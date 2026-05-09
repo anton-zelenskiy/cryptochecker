@@ -53,14 +53,6 @@ class MarketDataService:
                     continue
 
                 per_source_counts[p.source] += len(candles)
-                log.info(
-                    "candles fetched",
-                    source=p.source,
-                    market=market.pair,
-                    candles=len(candles),
-                    first_open_time_utc=candles[0].open_time_utc.isoformat(),
-                    last_open_time_utc=candles[-1].open_time_utc.isoformat(),
-                )
                 for c in candles:
                     rows.append(
                         {
