@@ -12,54 +12,14 @@ from project.marketdata.dto import NormalizedMarket
 from project.repositories.candles import CandleRepository
 from project.repositories.orderbook_walls import OrderBookWallRepository
 from project.repositories.users import UserTrackedAssetRepository
+from project.screener.dynamic_market_thresholds import (
+    dynamic_wall_thresholds_for_market,
+    range_pct_from_candle,
+)
 from project.screener.volume_regime import CandleOHLCV, compute_volume_regime
 
 
 logger = structlog.get_logger(__name__)
-
-
-def _range_pct_from_candle(c: CandleOHLCV) -> float | None:
-    if not c.close:
-        return None
-    try:
-        return float(c.high - c.low) / float(c.close)
-    except Exception:
-        return None
-
-
-def _dynamic_wall_thresholds_for_market(
-    *,
-    vol_feat: object,
-    median_range_pct: float | None,
-) -> tuple[float, float]:
-    avg_daily = getattr(vol_feat, "avg_daily_volume_quote", None)
-    if avg_daily is None or avg_daily <= 0:
-        avg_daily = 50_000_000.0
-
-    base_min_notional = max(5_000.0, min(150_000.0, float(avg_daily) * 0.0003))
-
-    vol_factor = 1.0
-    if median_range_pct is not None:
-        if median_range_pct >= 0.05:
-            vol_factor = 1.5
-        elif median_range_pct <= 0.02:
-            vol_factor = 0.85
-
-    spike = bool(getattr(vol_feat, "is_sharp_spike", False))
-    spike_factor = 1.2 if spike else 1.0
-
-    min_notional_quote = float(base_min_notional * vol_factor * spike_factor)
-
-    qty_mult = 6.0
-    if median_range_pct is not None and median_range_pct >= 0.05:
-        qty_mult += 2.0
-    if median_range_pct is not None and median_range_pct <= 0.02:
-        qty_mult -= 1.0
-    if spike:
-        qty_mult -= 0.75
-    qty_vs_median_multiplier = float(max(4.0, min(10.0, qty_mult)))
-
-    return min_notional_quote, qty_vs_median_multiplier
 
 
 class OrderBookWallsService:
@@ -110,10 +70,10 @@ class OrderBookWallsService:
             ]
             vol_feat = compute_volume_regime(ohlcv, lookback_days=14)
             last48 = ohlcv[-48:] if len(ohlcv) >= 48 else ohlcv
-            ranges = [v for v in (_range_pct_from_candle(c) for c in last48) if v is not None]
+            ranges = [v for v in (range_pct_from_candle(c) for c in last48) if v is not None]
             median_range_pct = float(statistics.median(ranges)) if ranges else None
 
-            min_notional, qty_mult = _dynamic_wall_thresholds_for_market(
+            min_notional, qty_mult = dynamic_wall_thresholds_for_market(
                 vol_feat=vol_feat,
                 median_range_pct=median_range_pct,
             )
