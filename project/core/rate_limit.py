@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
 from typing import Protocol
+
+from pydantic import BaseModel, PrivateAttr
 
 
 class RateLimitExceeded(Exception):
@@ -22,12 +23,8 @@ class RateLimiter(Protocol):
         """
 
 
-@dataclass
-class InMemoryFixedWindowRateLimiter:
-    _counters: dict[str, tuple[int, float]]
-
-    def __init__(self) -> None:
-        self._counters = {}
+class InMemoryFixedWindowRateLimiter(BaseModel):
+    _counters: dict[str, tuple[int, float]] = PrivateAttr(default_factory=dict)
 
     async def hit(self, *, key: str, limit: int, window_s: int) -> None:
         now = time.time()

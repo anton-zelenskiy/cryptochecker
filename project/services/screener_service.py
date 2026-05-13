@@ -31,11 +31,7 @@ from project.screener.scoring import apply_llm_adjustment, score_screener
 from project.screener.trend_structure import aggregate_bias, compute_trend_swing_feature
 from project.screener.volume_regime import CandleOHLCV, compute_volume_regime
 from project.services.fundamentals_snapshot_service import get_latest_fundamentals_dict_from_db
-from project.marketdata.api.gemini import (
-    SignalSummaryInput,
-    recheck_screener_with_gemini,
-    summarize_with_gemini,
-)
+from project.marketdata.api.gemini import recheck_screener_with_gemini
 from project.services.indicators import compute_indicator_bundle_snapshot
 from project.web.bot import get_bot
 
@@ -364,6 +360,10 @@ class ScreenerService:
                         atr=float(atr),
                         atr_timeframe=atr_tf,
                         fvg=features.fvg,
+                        min_stop_atr_mult=float(settings.SCREENER_TPSL_MIN_STOP_ATR_MULT),
+                        min_stop_pct=float(settings.SCREENER_TPSL_MIN_STOP_PCT),
+                        roundtrip_fee_frac=float(settings.SCREENER_TPSL_ROUNDTRIP_FEE_FRAC),
+                        roundtrip_slip_frac=float(settings.SCREENER_TPSL_ROUNDTRIP_SLIP_FRAC),
                     )
                     notes["sl"] = f"{sug.stop_loss:g}"
                     notes["tp"] = f"{sug.take_profit:g}"
@@ -378,29 +378,20 @@ class ScreenerService:
                 except Exception:
                     tpsl_line = ""
 
-        ind_1h = features.per_tf_indicators.get("1h") if "1h" in features.per_tf_indicators else None
-        ai_text = await summarize_with_gemini(
-            SignalSummaryInput(
-                symbol=f"{base_asset}/{quote_asset}",
-                decision=payload.final_decision,
-                confidence=float(payload.final_confidence),
-                rsi_14=ind_1h.rsi_14 if ind_1h else None,
-                macd_hist=ind_1h.macd_hist if ind_1h else None,
-                adx_14=ind_1h.adx_14 if ind_1h else None,
-                notes=notes or None,
-                screener_final_decision=payload.final_decision,
-                screener_final_confidence=float(payload.final_confidence),
-                screener_reasons=[str(x) for x in reasons],
-                llm_verdict=payload.llm.verdict if payload.llm else None,
-                llm_rationale=payload.llm.rationale if payload.llm else None,
-            )
+        summary_ru = (
+            payload.llm.telegram_summary_ru.strip()
+            if payload.llm and payload.llm.telegram_summary_ru.strip()
+            else ""
         )
-        text = ai_text or (
+        fallback_body = (
             f"{base_asset}/{quote_asset}\n"
             f"decision={payload.final_decision} confidence={payload.final_confidence:.2f}\n"
             + "\n".join(f"- {r}" for r in reasons)
-            + (f"\n{tpsl_line}" if tpsl_line else "")
         )
+        parts: list[str] = [summary_ru if summary_ru else fallback_body]
+        if tpsl_line:
+            parts.append(tpsl_line)
+        text = "\n".join(parts)
 
         bot = get_bot()
         sent = 0

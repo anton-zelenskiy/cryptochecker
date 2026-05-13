@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict
 
 from project.screener.contracts import DecisionSide, FvgNearbyFeature, ScreenerFeaturesV1
 
 
 SL_ATR_MULT_DEFAULT = 1.5
-TP_R_MULT_DEFAULT = 2.0
+TP_R_MULT_DEFAULT = 3.0
 SNAP_MAX_PCT_DEFAULT = 0.04
 SNAP_MAX_RISK_MULT_DEFAULT = 2.0
 
 
-@dataclass(frozen=True, slots=True)
-class TpSlSuggestion:
+class TpSlSuggestion(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     entry: float
     stop_loss: float
     take_profit: float
@@ -44,6 +45,39 @@ def _baseline_levels(*, decision: DecisionSide, entry: float, atr: float, sl_atr
     raise ValueError("baseline levels require LONG/SHORT")
 
 
+def _enforce_min_risk_and_friction(
+    *,
+    decision: DecisionSide,
+    entry: float,
+    sl: float,
+    tp_r_mult: float,
+    min_stop_atr_mult: float,
+    min_stop_pct: float,
+    roundtrip_fee_frac: float,
+    roundtrip_slip_frac: float,
+    atr: float,
+) -> tuple[float, float, str]:
+    risk_raw = abs(entry - sl)
+    min_floor = 0.0
+    if min_stop_atr_mult > 0 and atr > 0:
+        min_floor = max(min_floor, min_stop_atr_mult * atr)
+    if min_stop_pct > 0 and entry > 0:
+        min_floor = max(min_floor, min_stop_pct * entry)
+    friction = 0.0
+    if entry > 0:
+        friction = entry * max(0.0, roundtrip_fee_frac + roundtrip_slip_frac)
+    risk_adj = max(risk_raw, min_floor) + friction
+    if decision == "LONG":
+        sl_adj = entry - risk_adj
+        tp_adj = entry + tp_r_mult * risk_adj
+    else:
+        sl_adj = entry + risk_adj
+        tp_adj = entry - tp_r_mult * risk_adj
+    tol = max(1e-12, 1e-9 * entry, 1e-9 * max(risk_raw, risk_adj, 1.0))
+    suffix = "_adj" if risk_adj > risk_raw + tol else ""
+    return sl_adj, tp_adj, suffix
+
+
 def suggest_trade_levels(
     *,
     decision: DecisionSide,
@@ -55,6 +89,10 @@ def suggest_trade_levels(
     tp_r_mult: float = TP_R_MULT_DEFAULT,
     snap_max_pct: float = SNAP_MAX_PCT_DEFAULT,
     snap_max_risk_mult: float = SNAP_MAX_RISK_MULT_DEFAULT,
+    min_stop_atr_mult: float = 0.0,
+    min_stop_pct: float = 0.0,
+    roundtrip_fee_frac: float = 0.0,
+    roundtrip_slip_frac: float = 0.0,
 ) -> TpSlSuggestion:
     if decision not in ("LONG", "SHORT"):
         raise ValueError("TP/SL suggestions only for LONG/SHORT")
@@ -87,8 +125,19 @@ def suggest_trade_levels(
                     sl = candidate
                     method = "atr_plus_fvg_snap"
 
-    risk = abs(entry - sl)
-    tp = entry + tp_r_mult * risk if decision == "LONG" else entry - tp_r_mult * risk
+    sl, tp, suffix = _enforce_min_risk_and_friction(
+        decision=decision,
+        entry=entry,
+        sl=sl,
+        tp_r_mult=tp_r_mult,
+        min_stop_atr_mult=min_stop_atr_mult,
+        min_stop_pct=min_stop_pct,
+        roundtrip_fee_frac=roundtrip_fee_frac,
+        roundtrip_slip_frac=roundtrip_slip_frac,
+        atr=atr,
+    )
+    if suffix:
+        method = f"{method}{suffix}"
 
     return TpSlSuggestion(
         entry=entry,

@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict
 
 
-@dataclass(frozen=True, slots=True)
-class Timeframe:
+class Timeframe(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     code: str  # "1m", "5m", "1h", "1d"
     seconds: int
 
 
-TF_1M = Timeframe("1m", 60)
-TF_5M = Timeframe("5m", 5 * 60)
-TF_15M = Timeframe("15m", 15 * 60)
-TF_1H = Timeframe("1h", 60 * 60)
-TF_4H = Timeframe("4h", 4 * 60 * 60)
-TF_1D = Timeframe("1d", 24 * 60 * 60)
+TF_1M = Timeframe(code="1m", seconds=60)
+TF_5M = Timeframe(code="5m", seconds=5 * 60)
+TF_15M = Timeframe(code="15m", seconds=15 * 60)
+TF_1H = Timeframe(code="1h", seconds=60 * 60)
+TF_4H = Timeframe(code="4h", seconds=4 * 60 * 60)
+TF_1D = Timeframe(code="1d", seconds=24 * 60 * 60)
 
 
 SUPPORTED_TIMEFRAMES: dict[str, Timeframe] = {

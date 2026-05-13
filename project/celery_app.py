@@ -30,6 +30,10 @@ celery_app.conf.update(
             "task": "project.tasks.paper_trading.paper_trading_tick",
             "schedule": crontab(minute="*/5"),
         },
+        "paper_trading_win_rate_hourly": {
+            "task": "project.tasks.paper_trading.paper_trading_win_rate_hourly",
+            "schedule": crontab(minute=3),
+        },
         # CoinGecko top catalog (plan §1): refresh a few times per day, staggered from ingest
         "refresh_catalog_top300": {
             "task": "project.tasks.catalog.refresh_catalog_top300",
@@ -54,7 +58,7 @@ celery_app.conf.update(
         # WS orderbook (L2) probe: detect support-side walls from first snapshots
         "ingest_tracked_orderbook_walls": {
             "task": "project.tasks.orderbook.ingest_tracked_orderbook_walls",
-            "schedule": crontab(minute="*/1"),
+            "schedule": crontab(minute="*/30"),
         },
         # Large buy clustering over recent WS trades
         "cluster_recent_large_buys": {

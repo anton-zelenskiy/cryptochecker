@@ -28,8 +28,8 @@ def test_select_atr_prefers_1h(features_with_atr: ScreenerFeaturesV1) -> None:
 @pytest.mark.parametrize(
     ("decision", "entry", "atr", "expected_sl", "expected_tp"),
     [
-        ("LONG", 100.0, 10.0, 85.0, 130.0),  # risk=1.5*10=15, TP=entry+2*risk
-        ("SHORT", 100.0, 10.0, 115.0, 70.0),  # TP=entry-2*risk
+        ("LONG", 100.0, 10.0, 85.0, 145.0),  # risk=1.5*10=15, TP=entry+3*risk
+        ("SHORT", 100.0, 10.0, 115.0, 55.0),  # TP=entry-3*risk
     ],
 )
 def test_suggest_trade_levels_baseline(decision: str, entry: float, atr: float, expected_sl: float, expected_tp: float) -> None:
@@ -43,7 +43,7 @@ def test_suggest_trade_levels_baseline(decision: str, entry: float, atr: float, 
     assert sug.method == "atr_baseline"
     assert sug.stop_loss == expected_sl
     assert sug.take_profit == expected_tp
-    assert sug.risk_r == 2.0
+    assert sug.risk_r == 3.0
 
 
 def test_fvg_snap_long_applies_when_aligned_and_reasonable() -> None:
@@ -66,7 +66,7 @@ def test_fvg_snap_long_applies_when_aligned_and_reasonable() -> None:
     )
     assert sug.method == "atr_plus_fvg_snap"
     assert sug.stop_loss == 92.0
-    assert sug.take_profit == 116.0  # risk=8 => TP=100+16
+    assert sug.take_profit == 124.0  # risk=8 => TP=100+3*8
 
 
 def test_fvg_snap_short_applies_when_aligned_and_reasonable() -> None:
@@ -87,7 +87,7 @@ def test_fvg_snap_short_applies_when_aligned_and_reasonable() -> None:
     )
     assert sug.method == "atr_plus_fvg_snap"
     assert sug.stop_loss == 108.0
-    assert sug.take_profit == 84.0  # risk=8 => TP=100-16
+    assert sug.take_profit == 76.0  # risk=8 => TP=100-3*8
 
 
 def test_fvg_snap_guard_blocks_absurdly_wide_sl() -> None:
@@ -112,4 +112,34 @@ def test_fvg_snap_guard_blocks_absurdly_wide_sl() -> None:
     )
     assert sug.method == "atr_baseline"
     assert sug.stop_loss == 85.0
+
+
+def test_tight_fvg_snap_widened_by_min_stop_and_friction() -> None:
+    entry = 0.3918
+    atr = 0.00260523
+    fvg = FvgNearbyFeature(
+        timeframe="15m",
+        direction="bull",
+        zone_low=0.3917,
+        zone_high=0.3920,
+        distance_pct_to_mid=0.01,
+        is_unfilled=True,
+    )
+    sug = suggest_trade_levels(
+        decision="LONG",
+        entry=entry,
+        atr=atr,
+        atr_timeframe="1h",
+        fvg=fvg,
+        min_stop_atr_mult=0.5,
+        min_stop_pct=0.0015,
+        roundtrip_fee_frac=0.0008,
+        roundtrip_slip_frac=0.0005,
+    )
+    risk = entry - sug.stop_loss
+    min_floor = max(0.5 * atr, 0.0015 * entry)
+    friction = entry * (0.0008 + 0.0005)
+    assert risk == pytest.approx(max(entry - 0.3917, min_floor) + friction, rel=1e-9, abs=1e-12)
+    assert sug.take_profit == pytest.approx(entry + 3.0 * risk, rel=1e-9, abs=1e-12)
+    assert sug.method == "atr_plus_fvg_snap_adj"
 

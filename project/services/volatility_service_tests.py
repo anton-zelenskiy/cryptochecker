@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import datetime as dt
+
 import pytest
 
-from project.services.volatility_big_moves import (
+from project.services.volatility_service import (
     BigMoveMetrics,
     compute_big_move_metrics,
     floor_time,
@@ -40,4 +41,3 @@ def test_compute_big_move_metrics_invalid_prev_close() -> None:
 )
 def test_passes_big_move_gate(metrics: BigMoveMetrics, threshold: float, expected: bool) -> None:
     assert passes_big_move_gate(metrics, threshold_pct=threshold) is expected
-

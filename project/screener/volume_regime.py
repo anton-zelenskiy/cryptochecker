@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass
 
 import pandas as pd
+from pydantic import BaseModel, ConfigDict
 
 from project.screener.contracts import VolumeRegimeFeature
 
 
-@dataclass(frozen=True, slots=True)
-class CandleOHLCV:
+class CandleOHLCV(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     open_time_utc: dt.datetime
     open: float
     high: float

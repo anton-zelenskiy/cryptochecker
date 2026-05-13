@@ -5,9 +5,9 @@ import hashlib
 import json
 import re
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
 
 import structlog
+from pydantic import BaseModel, ConfigDict
 
 from project.core.config import settings
 from project.core.redis_async import get_redis
@@ -23,8 +23,9 @@ DEFAULT_GEMINI_MODELS: tuple[str, ...] = (
 )
 
 
-@dataclass(frozen=True, slots=True)
-class SignalSummaryInput:
+class SignalSummaryInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     symbol: str
     decision: str  # LONG/SHORT/WAIT
     confidence: float
@@ -150,11 +151,15 @@ async def recheck_screener_with_gemini(
         return None
 
     prompt = (
-        "You validate a deterministic crypto screener output. "
-        "Reply with JSON only, no markdown, keys: "
-        'verdict (one of accept, downgrade_to_wait, flip), '
-        "confidence_adjust (number between -0.35 and 0.35), "
-        "rationale (short string in English).\n\n"
+        "You validate a deterministic crypto screener output and draft a user-facing alert.\n"
+        "Reply with JSON only, no markdown. Use exactly these keys:\n"
+        '- verdict: one of accept, downgrade_to_wait, flip\n'
+        "- confidence_adjust: number between -0.35 and 0.35\n"
+        "- rationale: short string in English (internal quality check)\n"
+        "- telegram_summary_ru: short Telegram-friendly message in Russian (2-4 lines max) for "
+        "the trading signal: symbol BASE/QUOTE from FEATURES_JSON, decision after your verdict "
+        "logic, confidence hint, key reasons in plain language. Do not invent prices; SL/TP may "
+        "be appended by the system separately.\n\n"
         f"FEATURES_JSON:\n{json.dumps(features_json, ensure_ascii=False)[:12000]}\n\n"
         f"DETERMINISTIC_JSON:\n{json.dumps(deterministic, ensure_ascii=False)[:4000]}\n"
     )
@@ -179,6 +184,8 @@ async def recheck_screener_with_gemini(
         parsed["confidence_adjust"] = adj
         if "rationale" not in parsed or not parsed["rationale"]:
             parsed["rationale"] = ""
+        ts = parsed.get("telegram_summary_ru")
+        parsed["telegram_summary_ru"] = str(ts).strip() if ts is not None else ""
         out = ScreenerLlmRecheckResult.model_validate(parsed)
     except Exception as e:
         logger.warning("gemini recheck failed", error=str(e))
@@ -214,7 +221,7 @@ async def summarize_with_gemini(data: SignalSummaryInput, model: str | None = No
         "You are a crypto market screener assistant. "
         "Given the structured calculation output, write a short Telegram-friendly summary "
         "in Russian. Keep it concise.\n\n"
-        f"INPUT_JSON:\n{json.dumps(asdict(data), ensure_ascii=False, indent=2)}\n"
+        f"INPUT_JSON:\n{json.dumps(data.model_dump(), ensure_ascii=False, indent=2, default=str)}\n"
     )
 
     try:

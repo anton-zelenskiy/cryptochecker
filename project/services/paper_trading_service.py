@@ -6,10 +6,12 @@ import structlog
 
 from project.core.config import settings
 from project.paper_trading.exit import evaluate_exit
+from project.paper_trading.stats import format_win_rate_report_message_ru, win_rate_pct
 from project.repositories.candles import CandleRepository
 from project.repositories.paper_trades import PaperTradeRepository
 from project.repositories.screener_snapshots import ScreenerSnapshotRepository
-from project.repositories.users import UserTrackedAssetRepository
+from project.repositories.users import UserSettingsRepository, UserTrackedAssetRepository
+from project.web.bot import get_bot
 from project.screener.contracts import ScreenerFeaturesV1
 from project.screener.risk import select_atr, suggest_trade_levels
 
@@ -28,6 +30,51 @@ class PaperTradingService:
         self._snapshot_repo = snapshot_repo or ScreenerSnapshotRepository()
         self._paper_repo = paper_repo or PaperTradeRepository()
         self._candles_repo = candles_repo or CandleRepository()
+
+    async def log_win_rate_stats(self) -> None:
+        if not settings.PAPER_TRADING_ENABLED:
+            return
+        agg = await self._paper_repo.aggregate_closed_and_open_counts()
+        wr = win_rate_pct(closed_total=int(agg["closed_total"]), wins=int(agg["wins"]))
+        logger.info(
+            "paper_trades_win_rate",
+            open_positions=agg["open_positions"],
+            closed_total=agg["closed_total"],
+            wins=agg["wins"],
+            losses=agg["losses"],
+            breakeven=agg["breakeven"],
+            win_rate_pct=wr,
+            avg_pnl_pct_closed=agg["avg_pnl_pct_closed"],
+        )
+        if not settings.TELEGRAM_BOT_TOKEN.strip():
+            return
+        chat_ids = await UserSettingsRepository().list_distinct_notify_telegram_ids_with_tracked_assets()
+        if not chat_ids:
+            return
+        text = format_win_rate_report_message_ru(
+            open_positions=int(agg["open_positions"]),
+            closed_total=int(agg["closed_total"]),
+            wins=int(agg["wins"]),
+            losses=int(agg["losses"]),
+            breakeven=int(agg["breakeven"]),
+            win_rate_pct=wr,
+            avg_pnl_pct_closed=float(agg["avg_pnl_pct_closed"])
+            if agg["avg_pnl_pct_closed"] is not None
+            else None,
+        )
+        bot = get_bot()
+        try:
+            for telegram_id in chat_ids:
+                try:
+                    await bot.send_message(chat_id=telegram_id, text=text)
+                except Exception as e:
+                    logger.warning(
+                        "paper_trades_win_rate telegram send failed",
+                        telegram_id=telegram_id,
+                        error=str(e),
+                    )
+        finally:
+            await bot.session.close()
 
     async def paper_trading_tick(self) -> None:
         if not settings.PAPER_TRADING_ENABLED:
@@ -172,6 +219,10 @@ class PaperTradingService:
                 atr=float(atr),
                 atr_timeframe=atr_tf,
                 fvg=features.fvg,
+                min_stop_atr_mult=float(settings.SCREENER_TPSL_MIN_STOP_ATR_MULT),
+                min_stop_pct=float(settings.SCREENER_TPSL_MIN_STOP_PCT),
+                roundtrip_fee_frac=float(settings.SCREENER_TPSL_ROUNDTRIP_FEE_FRAC),
+                roundtrip_slip_frac=float(settings.SCREENER_TPSL_ROUNDTRIP_SLIP_FRAC),
             )
         except Exception:
             return

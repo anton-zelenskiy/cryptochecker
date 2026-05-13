@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass
+
+from pydantic import BaseModel, ConfigDict
 
 
-@dataclass(frozen=True, slots=True)
-class FvgDetected:
+class FvgDetected(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     direction: str
     zone_low: float
     zone_high: float

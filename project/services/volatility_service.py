@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 
 import structlog
+from pydantic import BaseModel, ConfigDict
 
 from project.models.candles import Candle
 from project.repositories.candles import CandleRepository
@@ -10,17 +11,43 @@ from project.repositories.indicators import IndicatorSnapshotRepository
 from project.repositories.screener_snapshots import ScreenerSnapshotRepository
 from project.repositories.users import UserSettingsRepository, UserTrackedAssetRepository
 from project.repositories.volatility_events import VolatilityEventRepository
-from project.marketdata.api.gemini import SignalSummaryInput, summarize_with_gemini
 from project.services.screener_service import fallback_decision_from_indicator_snapshot
-from project.services.volatility_big_moves import (
-    compute_big_move_metrics,
-    floor_time,
-    passes_big_move_gate,
-)
 from project.web.bot import get_bot
 
 
 logger = structlog.get_logger(__name__)
+
+
+class BigMoveMetrics(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    pct_change: float
+    range_pct: float
+
+
+def floor_time(ts: dt.datetime, *, seconds: int) -> dt.datetime:
+    epoch = int(ts.timestamp())
+    floored = epoch - (epoch % seconds)
+    return dt.datetime.fromtimestamp(floored, tz=dt.timezone.utc)
+
+
+def compute_big_move_metrics(
+    *, prev_close: float, latest_close: float, latest_high: float, latest_low: float
+) -> BigMoveMetrics:
+    if prev_close <= 0:
+        raise ValueError("prev_close must be > 0")
+    pct_change = (latest_close - prev_close) / prev_close * 100.0
+    range_pct = (latest_high - latest_low) / prev_close * 100.0
+    return BigMoveMetrics(pct_change=float(pct_change), range_pct=float(range_pct))
+
+
+def passes_big_move_gate(
+    metrics: BigMoveMetrics,
+    *,
+    threshold_pct: float,
+    range_multiplier: float = 1.25,
+) -> bool:
+    return abs(metrics.pct_change) >= threshold_pct or metrics.range_pct >= (threshold_pct * range_multiplier)
 
 
 def _core_indicators_from_screener_features(
@@ -125,22 +152,6 @@ class VolatilityService:
                     decision_str = scr.final_decision
                     decision_conf = float(scr.final_confidence)
                     rsi_for_msg, macd_for_msg, adx_for_msg = _core_indicators_from_screener_features(scr.features)
-                    reasons = scr.reasons if isinstance(scr.reasons, list) else []
-                    ai_text = await summarize_with_gemini(
-                        SignalSummaryInput(
-                            symbol=f"{base}/{quote}",
-                            decision=decision_str,
-                            confidence=decision_conf,
-                            rsi_14=rsi_for_msg,
-                            macd_hist=macd_for_msg,
-                            adx_14=adx_for_msg,
-                            screener_final_decision=scr.final_decision,
-                            screener_final_confidence=float(scr.final_confidence),
-                            screener_reasons=[str(x) for x in reasons[:12]],
-                            llm_verdict=scr.llm_verdict,
-                            llm_rationale=scr.llm_rationale,
-                        )
-                    )
                 else:
                     snap = await indicator_repo.get_latest(
                         source=source_used, base_asset=base, quote_asset=quote, timeframe=timeframe
@@ -148,24 +159,14 @@ class VolatilityService:
                     decision_str, decision_conf, rsi_for_msg = fallback_decision_from_indicator_snapshot(snap)
                     macd_for_msg = float(snap.macd_hist) if snap and snap.macd_hist is not None else None
                     adx_for_msg = float(snap.adx_14) if snap and snap.adx_14 is not None else None
-                    ai_text = await summarize_with_gemini(
-                        SignalSummaryInput(
-                            symbol=f"{base}/{quote}",
-                            decision=decision_str,
-                            confidence=decision_conf,
-                            rsi_14=rsi_for_msg,
-                            macd_hist=macd_for_msg,
-                            adx_14=adx_for_msg,
-                        )
-                    )
 
                 direction = "UP" if metrics.pct_change >= 0 else "DOWN"
-                base_text = (
-                    f"{base}/{quote} {direction} {metrics.pct_change:.2f}% (range {metrics.range_pct:.2f}%)\n"
-                    f"decision={decision_str} confidence={decision_conf:.2f} "
+                text = (
+                    f"Big move: {base}/{quote} {direction} {metrics.pct_change:.2f}% "
+                    f"(range {metrics.range_pct:.2f}%)\n"
+                    f"Screener context: {decision_str} conf={decision_conf:.2f} "
                     f"rsi14={rsi_for_msg} macd_hist={macd_for_msg} adx14={adx_for_msg}"
                 )
-                text = ai_text or base_text
 
                 for telegram_id, threshold in subscribers:
                     if not passes_big_move_gate(metrics, threshold_pct=threshold):

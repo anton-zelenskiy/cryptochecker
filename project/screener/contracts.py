@@ -111,6 +111,7 @@ class ScreenerLlmRecheckResult(BaseModel):
     verdict: Literal["accept", "downgrade_to_wait", "flip"] = "accept"
     confidence_adjust: float = Field(default=0.0, ge=-0.35, le=0.35)
     rationale: str = ""
+    telegram_summary_ru: str = ""
 
 
 class ScreenerFinalPayload(BaseModel):

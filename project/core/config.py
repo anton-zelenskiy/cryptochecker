@@ -80,6 +80,12 @@ class Settings(BaseSettings):
     SCREENER_NOTIFY_MIN_CONFIDENCE: float = 0.65
     SCREENER_SIGNAL_DEDUP_TTL_HOURS: int = 24
 
+    # Shared by screener Telegram TP/SL hints and paper trading entries (fractions of price, not percent points).
+    SCREENER_TPSL_MIN_STOP_ATR_MULT: float = 0.5
+    SCREENER_TPSL_MIN_STOP_PCT: float = 0.0015
+    SCREENER_TPSL_ROUNDTRIP_FEE_FRAC: float = 0.0008
+    SCREENER_TPSL_ROUNDTRIP_SLIP_FRAC: float = 0.0005
+
     PAPER_TRADING_ENABLED: bool = True
     PAPER_TRADING_MIN_CONFIDENCE: float = 0.65
     PAPER_TRADING_FLIP_MIN_CONFIDENCE: float = 0.70

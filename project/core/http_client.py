@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import httpx
 import structlog
+from pydantic import BaseModel, ConfigDict
 
 from project.core.rate_limit import RateLimitExceeded, RateLimiter
 from project.core.retry import Retry
@@ -12,8 +11,9 @@ from project.core.retry import Retry
 logger = structlog.get_logger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
-class RateLimitPolicy:
+class RateLimitPolicy(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     key: str
     limit: int
     window_s: int

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from project.core.db_session import sessionmanager
 from project.models.paper_trading import PaperTrade
@@ -111,3 +111,50 @@ class PaperTradeRepository:
             await session.commit()
             await session.refresh(trade)
             return trade
+
+    async def aggregate_closed_and_open_counts(self) -> dict[str, int | float | None]:
+        async with sessionmanager.session() as session:
+            open_positions = int(
+                await session.scalar(select(func.count()).where(PaperTrade.exit_time_utc.is_(None))) or 0
+            )
+            closed_total = int(
+                await session.scalar(select(func.count()).where(PaperTrade.exit_time_utc.is_not(None))) or 0
+            )
+            wins = int(
+                await session.scalar(
+                    select(func.count()).where(
+                        PaperTrade.exit_time_utc.is_not(None),
+                        PaperTrade.pnl_pct > 0,
+                    )
+                )
+                or 0
+            )
+            losses = int(
+                await session.scalar(
+                    select(func.count()).where(
+                        PaperTrade.exit_time_utc.is_not(None),
+                        PaperTrade.pnl_pct < 0,
+                    )
+                )
+                or 0
+            )
+            breakeven = int(
+                await session.scalar(
+                    select(func.count()).where(
+                        PaperTrade.exit_time_utc.is_not(None),
+                        PaperTrade.pnl_pct == 0,
+                    )
+                )
+                or 0
+            )
+            avg_pnl = await session.scalar(
+                select(func.avg(PaperTrade.pnl_pct)).where(PaperTrade.exit_time_utc.is_not(None))
+            )
+        return {
+            "open_positions": open_positions,
+            "closed_total": closed_total,
+            "wins": wins,
+            "losses": losses,
+            "breakeven": breakeven,
+            "avg_pnl_pct_closed": float(avg_pnl) if avg_pnl is not None else None,
+        }

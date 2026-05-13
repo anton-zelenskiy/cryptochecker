@@ -57,6 +57,18 @@ class UserSettingsRepository(BaseRepository[UserSettings]):
             )
             return [(int(tid), float(thr)) for tid, thr in res.all()]
 
+    async def list_distinct_notify_telegram_ids_with_tracked_assets(self) -> list[int]:
+        async with self._sessionmanager.session() as session:
+            res = await session.execute(
+                select(TelegramUser.telegram_id)
+                .join(UserSettings, UserSettings.user_id == TelegramUser.id)
+                .join(UserTrackedAsset, UserTrackedAsset.user_id == TelegramUser.id)
+                .where(UserSettings.notifications_enabled.is_(True))
+                .where(UserTrackedAsset.enabled.is_(True))
+                .distinct()
+            )
+            return [int(tid) for tid in res.scalars().all()]
+
 
 class UserTrackedAssetRepository(BaseRepository[UserTrackedAsset]):
     def __init__(self) -> None:
