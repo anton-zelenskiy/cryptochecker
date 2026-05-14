@@ -94,23 +94,40 @@ class PaperTradingService:
                 )
 
     async def _process_market(self, *, base_asset: str, quote_asset: str) -> None:
-        snap_row = await self._snapshot_repo.get_latest_for_market(
-            base_asset=base_asset,
-            quote_asset=quote_asset,
-        )
-        if snap_row is None or self._is_snapshot_stale(snap_row):
-            return
-
-        features = ScreenerFeaturesV1.model_validate(snap_row.features)
-
         open_trade = await self._paper_repo.get_latest_open_trade_for_market(
             base_asset=base_asset,
             quote_asset=quote_asset,
         )
+        snap_row = await self._snapshot_repo.get_latest_for_market(
+            base_asset=base_asset,
+            quote_asset=quote_asset,
+        )
+
         if open_trade:
+            features: ScreenerFeaturesV1 | None = None
+            if snap_row is not None and not self._is_snapshot_stale(snap_row):
+                features = ScreenerFeaturesV1.model_validate(snap_row.features)
             await self._maybe_close(open_trade=open_trade, snap_row=snap_row, features=features)
             return
 
+        if snap_row is None:
+            logger.debug(
+                "paper_trading_skip_no_snapshot",
+                base_asset=base_asset,
+                quote_asset=quote_asset,
+            )
+            return
+        if self._is_snapshot_stale(snap_row):
+            logger.debug(
+                "paper_trading_skip_stale_snapshot",
+                base_asset=base_asset,
+                quote_asset=quote_asset,
+                computed_at=getattr(snap_row, "computed_at", None),
+                max_age_minutes=int(settings.PAPER_TRADING_MAX_SNAPSHOT_AGE_MINUTES),
+            )
+            return
+
+        features = ScreenerFeaturesV1.model_validate(snap_row.features)
         await self._maybe_open(snap_row=snap_row, features=features)
 
     def _is_snapshot_stale(self, snap_row: object) -> bool:
@@ -127,8 +144,8 @@ class PaperTradingService:
         self,
         *,
         open_trade: object,
-        snap_row: object,
-        features: ScreenerFeaturesV1,
+        snap_row: object | None,
+        features: ScreenerFeaturesV1 | None,
     ) -> bool:
         candles = await self._candles_repo.list_from_open_time_asc(
             source=str(getattr(open_trade, "source")),
@@ -161,6 +178,9 @@ class PaperTradingService:
                 exit_reason=reason,
             )
             return True
+
+        if features is None or snap_row is None:
+            return False
 
         final_d = str(getattr(snap_row, "final_decision"))
         final_c = float(getattr(snap_row, "final_confidence"))

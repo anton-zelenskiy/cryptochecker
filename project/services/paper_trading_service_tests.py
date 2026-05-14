@@ -241,6 +241,74 @@ async def test_tick_closes_on_tp(monkeypatch: pytest.MonkeyPatch, patch_users: N
 
 
 @pytest.mark.asyncio
+async def test_tick_closes_on_tp_when_snapshot_stale(monkeypatch: pytest.MonkeyPatch, patch_users: None) -> None:
+    monkeypatch.setattr(config.settings, "PAPER_TRADING_ENABLED", True)
+    monkeypatch.setattr(config.settings, "PAPER_TRADING_MAX_SNAPSHOT_AGE_MINUTES", 5)
+    entry_t = dt.datetime(2026, 5, 2, 10, 0, tzinfo=dt.timezone.utc)
+    hit_t = dt.datetime(2026, 5, 2, 10, 5, tzinfo=dt.timezone.utc)
+    open_trade = SimpleNamespace(
+        id=99,
+        source="kucoin",
+        base_asset="BTC",
+        quote_asset="USDT",
+        side="LONG",
+        entry_price=100.0,
+        entry_time_utc=entry_t,
+        stop_loss=90.0,
+        take_profit=110.0,
+    )
+    paper = FakePaperTradeRepository(initial_open=open_trade)
+    candles = [SimpleNamespace(open_time_utc=hit_t, low=95.0, high=115.0)]
+    old = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1)
+    svc = pts.PaperTradingService(
+        snapshot_repo=FakeScreenerSnapshotRepository(
+            _snap(features=_minimal_features_dict(), computed_at=old)
+        ),
+        paper_repo=paper,
+        candles_repo=FakeCandleRepository(candles),
+    )
+    await svc.paper_trading_tick()
+    assert len(paper.closed) == 1
+    assert paper.closed[0]["exit_reason"] == "tp_hit"
+
+
+@pytest.mark.asyncio
+async def test_tick_flip_skipped_when_snapshot_stale(monkeypatch: pytest.MonkeyPatch, patch_users: None) -> None:
+    monkeypatch.setattr(config.settings, "PAPER_TRADING_ENABLED", True)
+    monkeypatch.setattr(config.settings, "PAPER_TRADING_MAX_SNAPSHOT_AGE_MINUTES", 5)
+    monkeypatch.setattr(config.settings, "PAPER_TRADING_FLIP_MIN_CONFIDENCE", 0.65)
+    entry_t = dt.datetime(2026, 5, 2, 10, 0, tzinfo=dt.timezone.utc)
+    open_trade = SimpleNamespace(
+        id=7,
+        source="kucoin",
+        base_asset="BTC",
+        quote_asset="USDT",
+        side="LONG",
+        entry_price=100.0,
+        entry_time_utc=entry_t,
+        stop_loss=90.0,
+        take_profit=200.0,
+    )
+    paper = FakePaperTradeRepository(initial_open=open_trade)
+    candles = [SimpleNamespace(open_time_utc=entry_t, low=95.0, high=105.0)]
+    old = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=1)
+    svc = pts.PaperTradingService(
+        snapshot_repo=FakeScreenerSnapshotRepository(
+            _snap(
+                features=_minimal_features_dict(price=102.0),
+                final_decision="SHORT",
+                final_confidence=0.8,
+                computed_at=old,
+            )
+        ),
+        paper_repo=paper,
+        candles_repo=FakeCandleRepository(candles),
+    )
+    await svc.paper_trading_tick()
+    assert paper.closed == []
+
+
+@pytest.mark.asyncio
 async def test_tick_flip_closes_long(monkeypatch: pytest.MonkeyPatch, patch_users: None) -> None:
     monkeypatch.setattr(config.settings, "PAPER_TRADING_ENABLED", True)
     monkeypatch.setattr(config.settings, "PAPER_TRADING_FLIP_MIN_CONFIDENCE", 0.65)
