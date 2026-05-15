@@ -82,6 +82,8 @@ def _minimal_features_dict(
     quote: str = "USDT",
     price: float = 100.0,
     atr_14: float = 5.0,
+    higher_tf_bias: str = "neutral",
+    lower_tf_bias: str = "neutral",
 ) -> dict:
     return {
         "source": "kucoin",
@@ -91,6 +93,8 @@ def _minimal_features_dict(
         "current_price": price,
         "current_price_time_utc": "2026-05-02T12:00:00+00:00",
         "current_price_timeframe": "5m",
+        "higher_tf_bias": higher_tf_bias,
+        "lower_tf_bias": lower_tf_bias,
         "per_tf_indicators": {
             "1h": {
                 "timeframe": "1h",
@@ -206,13 +210,47 @@ async def test_tick_opens_long_with_sl_tp(monkeypatch: pytest.MonkeyPatch, patch
     assert len(paper.open_calls) == 1
     oc = paper.open_calls[0]
     assert oc["side"] == "LONG"
+    assert oc["signal_horizon"] == "intraday"
     assert oc["stop_loss"] is not None
     assert oc["take_profit"] is not None
     assert oc["screener_snapshot_id"] == 1
 
 
 @pytest.mark.asyncio
-async def test_tick_closes_on_tp(monkeypatch: pytest.MonkeyPatch, patch_users: None) -> None:
+async def test_tick_opens_with_swing_horizon_when_higher_tf_bull(
+    monkeypatch: pytest.MonkeyPatch, patch_users: None
+) -> None:
+    monkeypatch.setattr(config.settings, "PAPER_TRADING_ENABLED", True)
+    monkeypatch.setattr(config.settings, "PAPER_TRADING_MIN_CONFIDENCE", 0.5)
+    paper = FakePaperTradeRepository()
+    svc = pts.PaperTradingService(
+        snapshot_repo=FakeScreenerSnapshotRepository(
+            _snap(features=_minimal_features_dict(higher_tf_bias="bull", lower_tf_bias="bull"))
+        ),
+        paper_repo=paper,
+        candles_repo=FakeCandleRepository([]),
+    )
+    await svc.paper_trading_tick()
+    assert len(paper.open_calls) == 1
+    assert paper.open_calls[0]["signal_horizon"] == "swing"
+
+
+@pytest.mark.asyncio
+async def test_tick_opens_scalp_when_lower_bull_higher_bear_long(
+    monkeypatch: pytest.MonkeyPatch, patch_users: None
+) -> None:
+    monkeypatch.setattr(config.settings, "PAPER_TRADING_ENABLED", True)
+    monkeypatch.setattr(config.settings, "PAPER_TRADING_MIN_CONFIDENCE", 0.5)
+    paper = FakePaperTradeRepository()
+    svc = pts.PaperTradingService(
+        snapshot_repo=FakeScreenerSnapshotRepository(
+            _snap(features=_minimal_features_dict(higher_tf_bias="bear", lower_tf_bias="bull"))
+        ),
+        paper_repo=paper,
+        candles_repo=FakeCandleRepository([]),
+    )
+    await svc.paper_trading_tick()
+    assert paper.open_calls[0]["signal_horizon"] == "scalp"
     monkeypatch.setattr(config.settings, "PAPER_TRADING_ENABLED", True)
     entry_t = dt.datetime(2026, 5, 2, 10, 0, tzinfo=dt.timezone.utc)
     hit_t = dt.datetime(2026, 5, 2, 10, 5, tzinfo=dt.timezone.utc)

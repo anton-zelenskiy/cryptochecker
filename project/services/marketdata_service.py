@@ -93,6 +93,7 @@ class MarketDataService:
             ("1h", 336),
             ("4h", 720),
             ("1d", 2160),
+            ("1w", 24 * 7 * 260),
         )
         for tf, hours in specs:
             await self.ingest_tracked_candles(timeframe=tf, lookback_hours=hours)

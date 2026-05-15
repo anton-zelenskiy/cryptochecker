@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 class Timeframe(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    code: str  # "1m", "5m", "1h", "1d"
+    code: str  # "1m", "5m", "1h", "1d", "1w"
     seconds: int
 
 
@@ -16,11 +16,12 @@ TF_15M = Timeframe(code="15m", seconds=15 * 60)
 TF_1H = Timeframe(code="1h", seconds=60 * 60)
 TF_4H = Timeframe(code="4h", seconds=4 * 60 * 60)
 TF_1D = Timeframe(code="1d", seconds=24 * 60 * 60)
+TF_1W = Timeframe(code="1w", seconds=7 * 24 * 60 * 60)
 
 
 SUPPORTED_TIMEFRAMES: dict[str, Timeframe] = {
     tf.code: tf
-    for tf in (TF_1M, TF_5M, TF_15M, TF_1H, TF_4H, TF_1D)
+    for tf in (TF_1M, TF_5M, TF_15M, TF_1H, TF_4H, TF_1D, TF_1W)
 }
 
 

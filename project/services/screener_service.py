@@ -28,6 +28,7 @@ from project.screener.contracts import (
 from project.screener.risk import select_atr, suggest_trade_levels
 from project.screener.fvg_detect import detect_fvgs, distance_pct_to_zone_mid
 from project.screener.scoring import apply_llm_adjustment, score_screener
+from project.screener.signal_horizon import infer_signal_horizon, signal_horizon_label_ru
 from project.screener.trend_structure import aggregate_bias, compute_trend_swing_feature
 from project.screener.volume_regime import CandleOHLCV, compute_volume_regime
 from project.services.fundamentals_snapshot_service import get_latest_fundamentals_dict_from_db
@@ -38,9 +39,9 @@ from project.web.bot import get_bot
 
 logger = structlog.get_logger(__name__)
 
-TF_HIGHER = ("4h", "1d")
+TF_HIGHER = ("4h", "1d", "1w")
 TF_LOWER = ("15m", "1h")
-TF_ALL = ("15m", "1h", "4h", "1d")
+TF_ALL = ("15m", "1h", "4h", "1d", "1w")
 SOURCES_TRY = ("kucoin", "bybit")
 PRICE_TF_PREFERENCE = ("5m", "15m", "1h")
 
@@ -151,12 +152,14 @@ class ScreenerService:
         )
 
         for tf in TF_ALL:
+            snap_limit = 500 if tf == "1w" else 400
+            trend_limit = 260 if tf == "1w" else 220
             snap = await compute_indicator_bundle_snapshot(
                 source=source,
                 base_asset=base_asset,
                 quote_asset=quote_asset,
                 timeframe=tf,
-                limit=400,
+                limit=snap_limit,
             )
             if not snap:
                 continue
@@ -166,7 +169,7 @@ class ScreenerService:
                 base_asset=base_asset,
                 quote_asset=quote_asset,
                 timeframe=tf,
-                limit=220,
+                limit=trend_limit,
             )
             if len(candles) < 20:
                 continue
@@ -391,6 +394,8 @@ class ScreenerService:
         parts: list[str] = [summary_ru if summary_ru else fallback_body]
         if tpsl_line:
             parts.append(tpsl_line)
+        hz = infer_signal_horizon(decision=str(payload.final_decision), features=features)
+        parts.append(f"Горизонт: {signal_horizon_label_ru(hz)}")
         text = "\n".join(parts)
 
         bot = get_bot()

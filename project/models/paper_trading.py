@@ -17,6 +17,7 @@ class PaperTrade(Base):
     base_asset: Mapped[str] = mapped_column(String(16), nullable=False)
     quote_asset: Mapped[str] = mapped_column(String(16), nullable=False)
     timeframe: Mapped[str] = mapped_column(String(8), nullable=False)
+    signal_horizon: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     side: Mapped[str] = mapped_column(String(8), nullable=False)  # LONG/SHORT
 

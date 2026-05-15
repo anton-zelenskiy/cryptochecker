@@ -31,6 +31,7 @@ def _bybit_interval(timeframe: str) -> str:
         "1h": "60",
         "4h": "240",
         "1d": "D",
+        "1w": "W",
     }[tf]
 
 

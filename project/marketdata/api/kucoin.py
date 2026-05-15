@@ -39,6 +39,7 @@ def _kucoin_candle_type(timeframe: str) -> str:
         "1h": "1hour",
         "4h": "4hour",
         "1d": "1day",
+        "1w": "1week",
     }[tf]
 
 

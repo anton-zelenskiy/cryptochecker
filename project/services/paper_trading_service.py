@@ -13,6 +13,7 @@ from project.repositories.screener_snapshots import ScreenerSnapshotRepository
 from project.repositories.users import UserSettingsRepository, UserTrackedAssetRepository
 from project.web.bot import get_bot
 from project.screener.contracts import ScreenerFeaturesV1
+from project.screener.signal_horizon import infer_signal_horizon
 from project.screener.risk import select_atr, suggest_trade_levels
 
 
@@ -249,12 +250,14 @@ class PaperTradingService:
 
         entry_time = self._entry_time_utc(features=features, snap_row=snap_row)
         tf = features.current_price_timeframe or settings.PAPER_TRADING_EXIT_SCAN_TIMEFRAME
+        horizon = infer_signal_horizon(decision=final_d, features=features)
 
         trade = await self._paper_repo.open_trade(
             source=str(getattr(snap_row, "source")),
             base_asset=features.base_asset,
             quote_asset=features.quote_asset,
             timeframe=str(tf),
+            signal_horizon=horizon,
             side=final_d,
             entry_time_utc=entry_time,
             entry_price=float(entry_px),

@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+Run tests locally, e.g.: `uv run pytest -vv project/screener/signal_horizon_tests.py`
