@@ -14,7 +14,7 @@ from project.repositories.users import UserSettingsRepository, UserTrackedAssetR
 from project.web.bot import get_bot
 from project.screener.contracts import ScreenerFeaturesV1
 from project.screener.signal_horizon import infer_signal_horizon
-from project.screener.risk import select_atr, suggest_trade_levels
+from project.screener.risk import select_atr, suggest_trade_levels, tpsl_kwargs_from_settings
 
 
 logger = structlog.get_logger(__name__)
@@ -233,6 +233,7 @@ class PaperTradingService:
         if atr is None or atr_tf is None:
             return
 
+        horizon = infer_signal_horizon(decision=final_d, features=features)
         try:
             sug = suggest_trade_levels(
                 decision=final_d,
@@ -240,17 +241,13 @@ class PaperTradingService:
                 atr=float(atr),
                 atr_timeframe=atr_tf,
                 fvg=features.fvg,
-                min_stop_atr_mult=float(settings.SCREENER_TPSL_MIN_STOP_ATR_MULT),
-                min_stop_pct=float(settings.SCREENER_TPSL_MIN_STOP_PCT),
-                roundtrip_fee_frac=float(settings.SCREENER_TPSL_ROUNDTRIP_FEE_FRAC),
-                roundtrip_slip_frac=float(settings.SCREENER_TPSL_ROUNDTRIP_SLIP_FRAC),
+                **tpsl_kwargs_from_settings(signal_horizon=horizon),
             )
         except Exception:
             return
 
         entry_time = self._entry_time_utc(features=features, snap_row=snap_row)
         tf = features.current_price_timeframe or settings.PAPER_TRADING_EXIT_SCAN_TIMEFRAME
-        horizon = infer_signal_horizon(decision=final_d, features=features)
 
         trade = await self._paper_repo.open_trade(
             source=str(getattr(snap_row, "source")),

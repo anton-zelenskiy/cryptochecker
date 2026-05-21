@@ -25,7 +25,7 @@ from project.screener.contracts import (
     TrendBias,
     TrendSwingFeature,
 )
-from project.screener.risk import select_atr, suggest_trade_levels
+from project.screener.risk import select_atr, suggest_trade_levels, tpsl_kwargs_from_settings
 from project.screener.fvg_detect import detect_fvgs, distance_pct_to_zone_mid
 from project.screener.scoring import apply_llm_adjustment, score_screener
 from project.screener.signal_horizon import infer_signal_horizon, signal_horizon_label_ru
@@ -357,16 +357,17 @@ class ScreenerService:
             atr, atr_tf = select_atr(features)
             if atr is not None and atr_tf is not None:
                 try:
+                    horizon = infer_signal_horizon(
+                        decision=payload.final_decision,
+                        features=features,
+                    )
                     sug = suggest_trade_levels(
                         decision=payload.final_decision,
                         entry=float(features.current_price),
                         atr=float(atr),
                         atr_timeframe=atr_tf,
                         fvg=features.fvg,
-                        min_stop_atr_mult=float(settings.SCREENER_TPSL_MIN_STOP_ATR_MULT),
-                        min_stop_pct=float(settings.SCREENER_TPSL_MIN_STOP_PCT),
-                        roundtrip_fee_frac=float(settings.SCREENER_TPSL_ROUNDTRIP_FEE_FRAC),
-                        roundtrip_slip_frac=float(settings.SCREENER_TPSL_ROUNDTRIP_SLIP_FRAC),
+                        **tpsl_kwargs_from_settings(signal_horizon=horizon),
                     )
                     notes["sl"] = f"{sug.stop_loss:g}"
                     notes["tp"] = f"{sug.take_profit:g}"
@@ -543,8 +544,7 @@ class ScreenerService:
         processed = 0
         for base, quote in sorted(markets):
             try:
-                # If we already have a non-WAIT decision that was sent recently,
-                # skip recomputing this market to reduce API load.
+                skip_notify = False
                 prev = await ScreenerSnapshotRepository().get_latest_for_market(base_asset=base, quote_asset=quote)
                 if prev and prev.final_decision in ("LONG", "SHORT"):
                     lookback = dt.datetime.now(dt.timezone.utc) - dt.timedelta(
@@ -559,7 +559,7 @@ class ScreenerService:
                         since=lookback,
                     )
                     if exists:
-                        continue
+                        skip_notify = True
 
                 result = await self.compute_and_persist_for_market(
                     base_asset=base,
@@ -567,6 +567,8 @@ class ScreenerService:
                     run_llm_recheck=run_llm_recheck,
                 )
                 if not result:
+                    continue
+                if skip_notify:
                     continue
 
                 # Build lightweight features view for notify (reuse last snapshot in DB would be extra query).

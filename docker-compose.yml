@@ -2,8 +2,6 @@ services:
   app:
     image: ${GHCR_IMAGE:-cryptochecker:local}
     build: .
-    ports:
-      - "8000:8000"
     depends_on:
       - redis
       - db

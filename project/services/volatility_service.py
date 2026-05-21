@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict
 from project.marketdata.timeframes import TREND_PULLBACK_CONFIGS, TrendPullbackConfig, normalize_timeframe
 from project.models.candles import Candle
 from project.repositories.candles import CandleRepository
+from project.models.indicators import IndicatorSnapshot
 from project.repositories.indicators import IndicatorSnapshotRepository
 from project.repositories.screener_snapshots import ScreenerSnapshotRepository
 from project.repositories.users import UserSettingsRepository, UserTrackedAssetRepository
@@ -194,6 +195,9 @@ def _streak_window_metrics(candles_chrono: list[Candle], *, tail_n: int) -> BigM
     )
 
 
+INDICATOR_CONTEXT_TF_ORDER = ("1h", "15m", "4h", "5m")
+
+
 def _core_indicators_from_screener_features(
     features: dict | None,
 ) -> tuple[float | None, float | None, float | None]:
@@ -202,7 +206,7 @@ def _core_indicators_from_screener_features(
     per = features.get("per_tf_indicators")
     if not isinstance(per, dict):
         return (None, None, None)
-    for k in ("1h", "15m", "4h", "5m"):
+    for k in INDICATOR_CONTEXT_TF_ORDER:
         block = per.get(k)
         if not isinstance(block, dict) or block.get("rsi_14") is None:
             continue
@@ -215,6 +219,44 @@ def _core_indicators_from_screener_features(
             float(adx) if adx is not None else None,
         )
     return (None, None, None)
+
+
+def _core_indicators_from_indicator_snapshot(
+    snap: IndicatorSnapshot | None,
+) -> tuple[float | None, float | None, float | None]:
+    if snap is None or snap.rsi_14 is None:
+        return (None, None, None)
+    return (
+        float(snap.rsi_14),
+        float(snap.macd_hist) if snap.macd_hist is not None else None,
+        float(snap.adx_14) if snap.adx_14 is not None else None,
+    )
+
+
+async def _resolve_indicator_snapshot_for_context(
+    indicator_repo: IndicatorSnapshotRepository,
+    *,
+    base_asset: str,
+    quote_asset: str,
+    preferred_source: str,
+    sources_try: list[str],
+) -> IndicatorSnapshot | None:
+    """Indicators are computed on 15m+ TFs during screener runs, not on 5m."""
+    sources: list[str] = []
+    for src in (preferred_source, *sources_try):
+        if src and src not in sources:
+            sources.append(src)
+    for src in sources:
+        for tf in INDICATOR_CONTEXT_TF_ORDER:
+            snap = await indicator_repo.get_latest(
+                source=src,
+                base_asset=base_asset,
+                quote_asset=quote_asset,
+                timeframe=tf,
+            )
+            if snap is not None and snap.rsi_14 is not None:
+                return snap
+    return None
 
 
 class VolatilityService:
@@ -318,12 +360,15 @@ class VolatilityService:
                     decision_conf = float(scr.final_confidence)
                     rsi_for_msg, macd_for_msg, adx_for_msg = _core_indicators_from_screener_features(scr.features)
                 else:
-                    snap = await indicator_repo.get_latest(
-                        source=source_used, base_asset=base, quote_asset=quote, timeframe=timeframe
+                    snap = await _resolve_indicator_snapshot_for_context(
+                        indicator_repo,
+                        base_asset=base,
+                        quote_asset=quote,
+                        preferred_source=source_used,
+                        sources_try=sources,
                     )
                     decision_str, decision_conf, rsi_for_msg = fallback_decision_from_indicator_snapshot(snap)
-                    macd_for_msg = float(snap.macd_hist) if snap and snap.macd_hist is not None else None
-                    adx_for_msg = float(snap.adx_14) if snap and snap.adx_14 is not None else None
+                    _, macd_for_msg, adx_for_msg = _core_indicators_from_indicator_snapshot(snap)
 
                 direction = "UP" if metrics.pct_change >= 0 else "DOWN"
                 text = (
@@ -427,12 +472,15 @@ class VolatilityService:
                         decision_conf = float(scr.final_confidence)
                         rsi_for_msg, macd_for_msg, adx_for_msg = _core_indicators_from_screener_features(scr.features)
                     else:
-                        snap = await indicator_repo.get_latest(
-                            source=source_used, base_asset=base, quote_asset=quote, timeframe=timeframe
+                        snap = await _resolve_indicator_snapshot_for_context(
+                            indicator_repo,
+                            base_asset=base,
+                            quote_asset=quote,
+                            preferred_source=source_used,
+                            sources_try=sources,
                         )
                         decision_str, decision_conf, rsi_for_msg = fallback_decision_from_indicator_snapshot(snap)
-                        macd_for_msg = float(snap.macd_hist) if snap and snap.macd_hist is not None else None
-                        adx_for_msg = float(snap.adx_14) if snap and snap.adx_14 is not None else None
+                        _, macd_for_msg, adx_for_msg = _core_indicators_from_indicator_snapshot(snap)
 
                     dir_label = "UP" if direction == "green" else "DOWN"
                     text = (

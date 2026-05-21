@@ -8,6 +8,8 @@ import pytest
 from project.marketdata.timeframes import TrendPullbackConfig
 from project.services.volatility_service import (
     BigMoveMetrics,
+    INDICATOR_CONTEXT_TF_ORDER,
+    _core_indicators_from_indicator_snapshot,
     _streak_window_metrics,
     compute_big_move_metrics,
     detect_trend_with_pullback,
@@ -19,6 +21,18 @@ from project.services.volatility_service import (
 
 def _c(o: float, h: float, l: float, c: float) -> SimpleNamespace:
     return SimpleNamespace(open=o, high=h, low=l, close=c)
+
+
+def test_indicator_context_tf_order_prefers_higher_tf() -> None:
+    assert INDICATOR_CONTEXT_TF_ORDER[0] == "1h"
+    assert "5m" in INDICATOR_CONTEXT_TF_ORDER
+
+
+def test_core_indicators_from_indicator_snapshot() -> None:
+    snap = SimpleNamespace(rsi_14=55.0, macd_hist=0.01, adx_14=22.0)
+    assert _core_indicators_from_indicator_snapshot(snap) == (55.0, 0.01, 22.0)
+    assert _core_indicators_from_indicator_snapshot(None) == (None, None, None)
+    assert _core_indicators_from_indicator_snapshot(SimpleNamespace(rsi_14=None)) == (None, None, None)
 
 
 def test_floor_time_5m_bucket() -> None:

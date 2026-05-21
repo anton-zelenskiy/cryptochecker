@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
+from project.core.config import settings
 from project.screener.contracts import DecisionSide, FvgNearbyFeature, ScreenerFeaturesV1
 
 
@@ -34,6 +35,24 @@ def select_atr(features: ScreenerFeaturesV1) -> tuple[float | None, str | None]:
             if atr > 0:
                 return atr, tf
     return None, None
+
+
+def sl_atr_mult_for_horizon(signal_horizon: str | None) -> float:
+    if signal_horizon == "swing":
+        return float(settings.SCREENER_TPSL_SL_ATR_MULT_SWING)
+    return float(settings.SCREENER_TPSL_SL_ATR_MULT)
+
+
+def tpsl_kwargs_from_settings(*, signal_horizon: str | None = None) -> dict[str, float | bool]:
+    return {
+        "sl_atr_mult": sl_atr_mult_for_horizon(signal_horizon),
+        "fvg_snap_enabled": bool(settings.SCREENER_TPSL_FVG_SNAP_ENABLED),
+        "fvg_snap_min_risk_atr_mult": float(settings.SCREENER_TPSL_FVG_SNAP_MIN_RISK_ATR_MULT),
+        "min_stop_atr_mult": float(settings.SCREENER_TPSL_MIN_STOP_ATR_MULT),
+        "min_stop_pct": float(settings.SCREENER_TPSL_MIN_STOP_PCT),
+        "roundtrip_fee_frac": float(settings.SCREENER_TPSL_ROUNDTRIP_FEE_FRAC),
+        "roundtrip_slip_frac": float(settings.SCREENER_TPSL_ROUNDTRIP_SLIP_FRAC),
+    }
 
 
 def _baseline_levels(*, decision: DecisionSide, entry: float, atr: float, sl_atr_mult: float) -> tuple[float, float]:
@@ -87,6 +106,8 @@ def suggest_trade_levels(
     fvg: FvgNearbyFeature | None,
     sl_atr_mult: float = SL_ATR_MULT_DEFAULT,
     tp_r_mult: float = TP_R_MULT_DEFAULT,
+    fvg_snap_enabled: bool = True,
+    fvg_snap_min_risk_atr_mult: float = 0.0,
     snap_max_pct: float = SNAP_MAX_PCT_DEFAULT,
     snap_max_risk_mult: float = SNAP_MAX_RISK_MULT_DEFAULT,
     min_stop_atr_mult: float = 0.0,
@@ -107,23 +128,25 @@ def suggest_trade_levels(
     sl = baseline_sl
     method = "atr_baseline"
 
-    if fvg and fvg.direction and fvg.zone_low is not None and fvg.zone_high is not None:
+    if fvg_snap_enabled and fvg and fvg.direction and fvg.zone_low is not None and fvg.zone_high is not None:
         if decision == "LONG" and fvg.direction == "bull":
             candidate = float(fvg.zone_low)
             if 0 < candidate < entry:
                 candidate_risk = entry - candidate
                 pct = candidate_risk / entry
                 if pct <= snap_max_pct or candidate_risk <= baseline_risk * snap_max_risk_mult:
-                    sl = candidate
-                    method = "atr_plus_fvg_snap"
+                    if fvg_snap_min_risk_atr_mult <= 0 or candidate_risk >= fvg_snap_min_risk_atr_mult * atr:
+                        sl = candidate
+                        method = "atr_plus_fvg_snap"
         elif decision == "SHORT" and fvg.direction == "bear":
             candidate = float(fvg.zone_high)
             if candidate > entry:
                 candidate_risk = candidate - entry
                 pct = candidate_risk / entry
                 if pct <= snap_max_pct or candidate_risk <= baseline_risk * snap_max_risk_mult:
-                    sl = candidate
-                    method = "atr_plus_fvg_snap"
+                    if fvg_snap_min_risk_atr_mult <= 0 or candidate_risk >= fvg_snap_min_risk_atr_mult * atr:
+                        sl = candidate
+                        method = "atr_plus_fvg_snap"
 
     sl, tp, suffix = _enforce_min_risk_and_friction(
         decision=decision,

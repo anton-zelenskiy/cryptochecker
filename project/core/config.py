@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     SCREENER_SIGNAL_DEDUP_TTL_HOURS: int = 24
 
     # Shared by screener Telegram TP/SL hints and paper trading entries (fractions of price, not percent points).
+    SCREENER_TPSL_SL_ATR_MULT: float = 1.5
+    SCREENER_TPSL_SL_ATR_MULT_SWING: float = 2.0
+    SCREENER_TPSL_FVG_SNAP_ENABLED: bool = False
+    SCREENER_TPSL_FVG_SNAP_MIN_RISK_ATR_MULT: float = 1.0
     SCREENER_TPSL_MIN_STOP_ATR_MULT: float = 0.5
     SCREENER_TPSL_MIN_STOP_PCT: float = 0.0015
     SCREENER_TPSL_ROUNDTRIP_FEE_FRAC: float = 0.0008

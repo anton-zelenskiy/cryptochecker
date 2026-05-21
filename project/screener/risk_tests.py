@@ -63,6 +63,7 @@ def test_fvg_snap_long_applies_when_aligned_and_reasonable() -> None:
         atr=10.0,
         atr_timeframe="1h",
         fvg=fvg,
+        fvg_snap_enabled=True,
     )
     assert sug.method == "atr_plus_fvg_snap"
     assert sug.stop_loss == 92.0
@@ -84,6 +85,7 @@ def test_fvg_snap_short_applies_when_aligned_and_reasonable() -> None:
         atr=10.0,
         atr_timeframe="1h",
         fvg=fvg,
+        fvg_snap_enabled=True,
     )
     assert sug.method == "atr_plus_fvg_snap"
     assert sug.stop_loss == 108.0
@@ -142,4 +144,38 @@ def test_tight_fvg_snap_widened_by_min_stop_and_friction() -> None:
     assert risk == pytest.approx(max(entry - 0.3917, min_floor) + friction, rel=1e-9, abs=1e-12)
     assert sug.take_profit == pytest.approx(entry + 3.0 * risk, rel=1e-9, abs=1e-12)
     assert sug.method == "atr_plus_fvg_snap_adj"
+
+
+def test_fvg_snap_skipped_when_candidate_risk_below_min_atr() -> None:
+    fvg = FvgNearbyFeature(
+        timeframe="15m",
+        direction="bull",
+        zone_low=92.0,
+        zone_high=95.0,
+        distance_pct_to_mid=1.0,
+        is_unfilled=True,
+    )
+    sug = suggest_trade_levels(
+        decision="LONG",
+        entry=100.0,
+        atr=10.0,
+        atr_timeframe="1h",
+        fvg=fvg,
+        fvg_snap_enabled=True,
+        fvg_snap_min_risk_atr_mult=1.0,
+    )
+    assert sug.method == "atr_baseline"
+    assert sug.stop_loss == 85.0
+
+
+def test_sl_atr_mult_for_horizon_swing(monkeypatch) -> None:
+    from project.core import config
+
+    monkeypatch.setattr(config.settings, "SCREENER_TPSL_SL_ATR_MULT", 1.5)
+    monkeypatch.setattr(config.settings, "SCREENER_TPSL_SL_ATR_MULT_SWING", 2.0)
+    from project.screener.risk import sl_atr_mult_for_horizon
+
+    assert sl_atr_mult_for_horizon("swing") == 2.0
+    assert sl_atr_mult_for_horizon("intraday") == 1.5
+    assert sl_atr_mult_for_horizon(None) == 1.5
 
