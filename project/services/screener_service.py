@@ -389,7 +389,7 @@ class ScreenerService:
         )
         fallback_body = (
             f"{base_asset}/{quote_asset}\n"
-            f"decision={payload.final_decision} confidence={payload.final_confidence:.2f}\n"
+            f"decision={payload.final_decision} confidence={payload.final_confidence:.4f}\n"
             + "\n".join(f"- {r}" for r in reasons)
         )
         parts: list[str] = [summary_ru if summary_ru else fallback_body]

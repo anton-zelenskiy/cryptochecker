@@ -12,6 +12,7 @@ from project.repositories.users import (
     UserTrackedAssetRepository,
 )
 from project.marketdata.api.gemini import SignalSummaryInput, summarize_with_gemini
+from project.screener.indicator_format import format_indicator_value
 
 
 router = Router()
@@ -152,8 +153,10 @@ async def summary(message: Message) -> None:
         await message.answer(ai_text)
     else:
         await message.answer(
-            f"{asset}/USDT: decision={decision}, confidence={confidence:.2f}, "
-            f"rsi14={snap.rsi_14} macd_hist={snap.macd_hist} adx14={snap.adx_14}"
+            f"{asset}/USDT: decision={decision}, confidence={confidence:.4f}, "
+            f"rsi14={format_indicator_value(snap.rsi_14)} "
+            f"macd_hist={format_indicator_value(snap.macd_hist)} "
+            f"adx14={format_indicator_value(snap.adx_14)}"
         )
 
 

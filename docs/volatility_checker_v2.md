@@ -86,8 +86,9 @@ When volatility triggers:
 
 ### Volatility checker v2 (this doc)
 
-- [ ] Add `volatility_events` table (event_type, magnitude, timeframe, detected_at, cooldown_key, payload)
-- [ ] Implement “big move” detector using DB candles (5m/15m/1h)
+- [x] Add `volatility_events` table (event_type, magnitude, timeframe, detected_at, cooldown_key, payload)
+- [x] Implement “big move” detector using DB candles (5m)
+- [x] Volume spike on 5m: latest `volume_quote` vs 7-day median (1h candles, scaled to 5m), min 100k USDT, default 3× gate, `event_type=volume_spike`
 - [ ] Add event dedup + cooldown (Redis + DB uniqueness)
 - [ ] Integrate with screener snapshot + decision pipeline
 - [ ] Notification pipeline: send Telegram message only on events (no periodic spam)

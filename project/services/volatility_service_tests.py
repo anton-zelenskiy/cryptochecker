@@ -9,18 +9,31 @@ from project.marketdata.timeframes import TrendPullbackConfig
 from project.services.volatility_service import (
     BigMoveMetrics,
     INDICATOR_CONTEXT_TF_ORDER,
+    VOLUME_SPIKE_MIN_QUOTE_USD,
+    VolumeSpikeMetrics,
     _core_indicators_from_indicator_snapshot,
     _streak_window_metrics,
     compute_big_move_metrics,
+    compute_volume_spike_metrics,
     detect_trend_with_pullback,
     detect_trend_streak_formation,
     floor_time,
+    median_positive,
     passes_big_move_gate,
+    passes_volume_spike_gate,
+    volume_spike_baseline_candle_count,
 )
 
 
-def _c(o: float, h: float, l: float, c: float) -> SimpleNamespace:
-    return SimpleNamespace(open=o, high=h, low=l, close=c)
+def _c(o: float, h: float, l: float, c: float, *, vol_q: float | None = None) -> SimpleNamespace:
+    return SimpleNamespace(
+        open=o,
+        high=h,
+        low=l,
+        close=c,
+        volume_quote=vol_q,
+        volume_base=None,
+    )
 
 
 def test_indicator_context_tf_order_prefers_higher_tf() -> None:
@@ -64,6 +77,66 @@ def test_compute_big_move_metrics_invalid_prev_close() -> None:
 )
 def test_passes_big_move_gate(metrics: BigMoveMetrics, threshold: float, expected: bool) -> None:
     assert passes_big_move_gate(metrics, threshold_pct=threshold) is expected
+
+
+def test_median_positive() -> None:
+    assert median_positive([1.0, 3.0, 2.0]) == pytest.approx(2.0)
+    assert median_positive([]) is None
+    assert median_positive([-1.0, 0.0]) is None
+
+
+def test_compute_volume_spike_metrics_spike() -> None:
+    baseline = [_c(100, 101, 99, 100, vol_q=1_200_000.0) for _ in range(10)]
+    latest = _c(100, 101, 99, 100, vol_q=400_000.0)
+    m = compute_volume_spike_metrics(
+        latest_candle=latest,
+        baseline_candles_chrono=baseline,
+        baseline_periods_per_spike=12.0,
+        min_baseline_samples=5,
+    )
+    assert m is not None
+    assert m.volume_ratio == pytest.approx(4.0)
+    assert m.pct_above_median == pytest.approx(300.0)
+    assert m.baseline_median_quote == pytest.approx(100_000.0)
+
+
+def test_compute_volume_spike_metrics_insufficient_baseline() -> None:
+    latest = _c(100, 101, 99, 100, vol_q=200_000.0)
+    baseline = [_c(100, 101, 99, 100, vol_q=50_000.0)]
+    assert (
+        compute_volume_spike_metrics(
+            latest_candle=latest,
+            baseline_candles_chrono=baseline,
+            baseline_periods_per_spike=12.0,
+            min_baseline_samples=10,
+        )
+        is None
+    )
+
+
+def test_volume_spike_baseline_candle_count_one_week_1h() -> None:
+    assert volume_spike_baseline_candle_count(timeframe_seconds=3600) == 168
+
+
+def test_passes_volume_spike_gate() -> None:
+    m = VolumeSpikeMetrics(
+        latest_volume_quote=300_000.0,
+        baseline_median_quote=100_000.0,
+        volume_ratio=3.0,
+        pct_above_median=200.0,
+    )
+    assert passes_volume_spike_gate(m, min_multiplier=3.0) is True
+    assert passes_volume_spike_gate(m, min_multiplier=3.01) is False
+
+
+def test_passes_volume_spike_gate_rejects_below_min_quote() -> None:
+    m = VolumeSpikeMetrics(
+        latest_volume_quote=VOLUME_SPIKE_MIN_QUOTE_USD - 1.0,
+        baseline_median_quote=10_000.0,
+        volume_ratio=10.0,
+        pct_above_median=900.0,
+    )
+    assert passes_volume_spike_gate(m, min_multiplier=3.0) is False
 
 
 def test_detect_trend_streak_formation_three_green_no_prior() -> None:

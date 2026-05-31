@@ -9,6 +9,7 @@ from project.screener.contracts import (
     TrendSwingFeature,
     VolumeRegimeFeature,
 )
+from project.screener.indicator_format import format_indicator_value
 from project.screener.trend_structure import aggregate_bias
 
 
@@ -49,17 +50,17 @@ def score_screener(
         if ind.rsi_14 is not None:
             if ind.rsi_14 <= 32:
                 long_score += 0.8
-                reasons.append(f"rsi_oversold_{ref_tf}={ind.rsi_14:.1f}")
+                reasons.append(f"rsi_oversold_{ref_tf}={format_indicator_value(ind.rsi_14)}")
             elif ind.rsi_14 >= 68:
                 short_score += 0.8
-                reasons.append(f"rsi_overbought_{ref_tf}={ind.rsi_14:.1f}")
+                reasons.append(f"rsi_overbought_{ref_tf}={format_indicator_value(ind.rsi_14)}")
         if ind.macd_hist is not None:
             if ind.macd_hist > 0:
                 long_score += 0.35
             elif ind.macd_hist < 0:
                 short_score += 0.35
         if ind.adx_14 is not None and ind.adx_14 > 22:
-            reasons.append(f"adx_trending={ind.adx_14:.1f}")
+            reasons.append(f"adx_trending={format_indicator_value(ind.adx_14)}")
             long_score *= 1.05 if higher_bias == "bull" else 1.0
             short_score *= 1.05 if higher_bias == "bear" else 1.0
 
