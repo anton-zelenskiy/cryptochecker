@@ -72,9 +72,8 @@ def passes_big_move_gate(
     metrics: BigMoveMetrics,
     *,
     threshold_pct: float,
-    range_multiplier: float = 1.25,
 ) -> bool:
-    return abs(metrics.pct_change) >= threshold_pct or metrics.range_pct >= (threshold_pct * range_multiplier)
+    return abs(metrics.pct_change) >= threshold_pct
 
 
 def candle_volume_quote(c: Candle) -> float | None:

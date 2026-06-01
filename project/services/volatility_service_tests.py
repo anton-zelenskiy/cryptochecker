@@ -71,7 +71,7 @@ def test_compute_big_move_metrics_invalid_prev_close() -> None:
         (BigMoveMetrics(pct_change=2.0, range_pct=0.0), 2.0, True),
         (BigMoveMetrics(pct_change=-2.1, range_pct=0.0), 2.0, True),
         (BigMoveMetrics(pct_change=1.99, range_pct=0.0), 2.0, False),
-        (BigMoveMetrics(pct_change=0.1, range_pct=2.5), 2.0, True),  # range gate (2.0 * 1.25)
+        (BigMoveMetrics(pct_change=0.1, range_pct=2.5), 2.0, False),
         (BigMoveMetrics(pct_change=0.1, range_pct=2.49), 2.0, False),
     ],
 )
