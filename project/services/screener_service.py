@@ -18,12 +18,21 @@ from project.repositories.users import UserSettingsRepository, UserTrackedAssetR
 from project.screener.contracts import (
     FvgNearbyFeature,
     FundamentalsFeature,
+    LiquidityLevelsFeature,
     MicrostructureFeature,
     PerTimeframeIndicators,
     ScreenerFeaturesV1,
     ScreenerFinalPayload,
     TrendBias,
     TrendSwingFeature,
+)
+from project.screener.liquidity_structure import (
+    compute_liquidity_structure,
+    format_liquidity_telegram_lines,
+)
+from project.marketdata.api.bybit_derivatives import (
+    fetch_bybit_linear_derivatives_context,
+    format_derivatives_telegram_line,
 )
 from project.screener.risk import select_atr, suggest_trade_levels, tpsl_kwargs_from_settings
 from project.screener.fvg_detect import detect_fvgs, distance_pct_to_zone_mid
@@ -217,6 +226,14 @@ class ScreenerService:
 
         micro = await self._microstructure(base_asset=base_asset, quote_asset=quote_asset)
 
+        liquidity_feat = await self._liquidity_levels(
+            candle_repo=candle_repo,
+            source=source,
+            base_asset=base_asset,
+            quote_asset=quote_asset,
+            current_price=current_price,
+        )
+
         det = score_screener(
             higher_tf_trends=higher_tf_trend,
             lower_tf_trends=lower_tf_trend,
@@ -226,6 +243,8 @@ class ScreenerService:
             microstructure=micro,
             fvg_aligns_long=fvg_long,
             fvg_aligns_short=fvg_short,
+            liquidity=liquidity_feat,
+            current_price=current_price,
         )
 
         asof_times: list[dt.datetime] = []
@@ -253,6 +272,7 @@ class ScreenerService:
             fvg=fvg_feat,
             fundamentals=fund_feat,
             microstructure=micro,
+            liquidity=liquidity_feat,
         )
 
         llm = None
@@ -397,6 +417,16 @@ class ScreenerService:
             parts.append(tpsl_line)
         hz = infer_signal_horizon(decision=str(payload.final_decision), features=features)
         parts.append(f"Горизонт: {signal_horizon_label_ru(hz)}")
+        if features.liquidity:
+            deriv_line = format_derivatives_telegram_line(features.liquidity.derivatives)
+            liq_lines = format_liquidity_telegram_lines(
+                structure=features.liquidity.structure,
+                derivatives_line=None,
+            )
+            if liq_lines:
+                parts.extend(liq_lines)
+            if deriv_line:
+                parts.append(deriv_line)
         text = "\n".join(parts)
 
         bot = get_bot()
@@ -511,6 +541,51 @@ class ScreenerService:
             flag_undervalued_tvl=bool(data.get("flag_undervalued_tvl")),
             tvl_unavailable=bool(data.get("tvl_unavailable")),
         )
+
+    async def _liquidity_levels(
+        self,
+        *,
+        candle_repo: CandleRepository,
+        source: str,
+        base_asset: str,
+        quote_asset: str,
+        current_price: float | None,
+    ) -> LiquidityLevelsFeature | None:
+        tf = settings.LIQUIDITY_STRUCTURE_TIMEFRAME
+        lookback_days = int(settings.LIQUIDITY_STRUCTURE_LOOKBACK_DAYS)
+        limit = lookback_days * 6 + 30
+        candles = await candle_repo.list_latest_n(
+            source=source,
+            base_asset=base_asset,
+            quote_asset=quote_asset,
+            timeframe=tf,
+            limit=limit,
+        )
+        if len(candles) < 25:
+            return LiquidityLevelsFeature(
+                structure=None,
+                derivatives=await fetch_bybit_linear_derivatives_context(
+                    base_asset=base_asset,
+                    quote_asset=quote_asset,
+                ),
+            )
+        candles.sort(key=lambda c: c.open_time_utc)
+        highs = [float(c.high) for c in candles]
+        lows = [float(c.low) for c in candles]
+        closes = [float(c.close) for c in candles]
+        structure = compute_liquidity_structure(
+            highs=highs,
+            lows=lows,
+            closes=closes,
+            current_price=current_price,
+            timeframe=tf,
+            lookback_days=lookback_days,
+        )
+        derivatives = await fetch_bybit_linear_derivatives_context(
+            base_asset=base_asset,
+            quote_asset=quote_asset,
+        )
+        return LiquidityLevelsFeature(structure=structure, derivatives=derivatives)
 
     async def _microstructure(self, *, base_asset: str, quote_asset: str) -> MicrostructureFeature:
         since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=45)

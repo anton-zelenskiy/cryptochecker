@@ -56,6 +56,21 @@ These provide the core market microstructure and OHLCV for indicators.
 
 Not guaranteed on free tiers for all chains/tokens. In MVP we treat it as **N/A** unless a stable free endpoint exists for the token's chain.
 
+### 5) Derivatives context + chart-style liquidity (screener)
+
+| Data | Bybit linear REST | Internal (4h candles) | Notes |
+|------|-------------------|------------------------|------|
+| **Funding rate** | `GET /v5/market/tickers?category=linear` | — | Crowding hint; Redis cache ~3m. |
+| **Open interest** | same + `GET /v5/market/open-interest` | — | OI level + ~24h change. |
+| **Long/short account ratio** | `GET /v5/market/account-ratio` | — | Best-effort per symbol. |
+| **Liquidity structure** | — | `liquidity_structure.py` | **Not** a heatmap API. Detects untouched 4h swing lows/highs vs swept opposite side over ~14d (setup A/B sweep traps). Optional 5x/10x depth below untouched lows. |
+
+**Liquidity methodology (v1):**
+
+- **Setup A (`sweep_setup_down`):** price holds above rising untouched lows; recent highs swept → downside liquidity hunt likely.
+- **Setup B (`sweep_setup_up`):** mirror for downtrend (untouched highs, swept lows).
+- Uses spot/perp **4h candles** already ingested; no liquidation WebSocket ingest.
+
 ## Caching (Redis)
 
 Redis is used for:
@@ -73,6 +88,7 @@ Suggested TTLs (tune later):
 | market cap / FDV | 15–60m |
 | OHLCV fetch “tail” (last N candles) | 30–120s (if still used at runtime) |
 | Gemini summaries | 1–10m per `(symbol,timeframe_set,ts_bucket)` |
+| Bybit linear derivatives bundle | 2–5m per symbol |
 
 ## Fallback policy
 

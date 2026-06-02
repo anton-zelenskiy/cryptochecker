@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-FEATURE_VERSION = "1"
+FEATURE_VERSION = "2"
 
 TrendBias = Literal["bull", "bear", "neutral"]
 
@@ -76,6 +76,65 @@ class MicrostructureFeature(BaseModel):
     support_wall_recent: bool = False
 
 
+LiquidityPattern = Literal[
+    "sweep_setup_down",
+    "sweep_setup_up",
+    "balanced",
+    "liquidity_taken_below",
+    "liquidity_taken_above",
+    "none",
+]
+
+
+class SwingLevel(BaseModel):
+    price: float
+    bar_index: int = 0
+
+
+class LiquidityStructureComputed(BaseModel):
+    timeframe: str = "4h"
+    lookback_days: int = 14
+    pattern: LiquidityPattern = "none"
+    untouched_low_count: int = 0
+    untouched_high_count: int = 0
+    swept_high_count: int = 0
+    swept_low_count: int = 0
+    liquidity_line_low: float | None = None
+    liquidity_line_high: float | None = None
+    magnet_below: float | None = None
+    magnet_above: float | None = None
+    distance_pct_below: float | None = None
+    distance_pct_above: float | None = None
+    liq_5x_below: float | None = None
+    liq_10x_below: float | None = None
+    liq_5x_above: float | None = None
+    liq_10x_above: float | None = None
+    narrative_ru: str | None = None
+    untouched_lows: list[SwingLevel] = Field(default_factory=list)
+    untouched_highs: list[SwingLevel] = Field(default_factory=list)
+    swept_highs: list[SwingLevel] = Field(default_factory=list)
+    swept_lows: list[SwingLevel] = Field(default_factory=list)
+
+
+class DerivativesContext(BaseModel):
+    symbol: str | None = None
+    mark_price: float | None = None
+    open_interest: float | None = None
+    funding_rate: float | None = None
+    oi_change_24h_pct: float | None = None
+    long_short_ratio: float | None = None
+    funding_crowded_long: bool = False
+    funding_crowded_short: bool = False
+    oi_rising: bool = False
+    asof_time_utc: str | None = None
+    unavailable: bool = False
+
+
+class LiquidityLevelsFeature(BaseModel):
+    structure: LiquidityStructureComputed | None = None
+    derivatives: DerivativesContext | None = None
+
+
 class ScreenerFeaturesV1(BaseModel):
     version: str = Field(default=FEATURE_VERSION)
     source: str
@@ -93,6 +152,7 @@ class ScreenerFeaturesV1(BaseModel):
     fvg: FvgNearbyFeature | None = None
     fundamentals: FundamentalsFeature | None = None
     microstructure: MicrostructureFeature | None = None
+    liquidity: LiquidityLevelsFeature | None = None
 
 
 DecisionSide = Literal["LONG", "SHORT", "WAIT"]

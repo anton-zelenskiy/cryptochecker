@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from project.screener.contracts import (
     FundamentalsFeature,
+    LiquidityLevelsFeature,
+    LiquidityStructureComputed,
     MicrostructureFeature,
     PerTimeframeIndicators,
     TrendSwingFeature,
@@ -69,3 +71,55 @@ def test_apply_llm_flip_wait() -> None:
     d, c = apply_llm_adjustment("WAIT", 0.5, "flip", 0.0)
     assert d == "WAIT"
     assert c <= 0.35
+
+
+def test_score_screener_liquidity_sweep_setup_down() -> None:
+    higher = {"4h": TrendSwingFeature(timeframe="4h", bias="bear")}
+    lower = {"1h": TrendSwingFeature(timeframe="1h", bias="neutral")}
+    ind = {"1h": PerTimeframeIndicators(timeframe="1h", rsi_14=55.0)}
+    liquidity = LiquidityLevelsFeature(
+        structure=LiquidityStructureComputed(
+            pattern="sweep_setup_down",
+            liquidity_line_low=0.97,
+        ),
+    )
+    out = score_screener(
+        higher_tf_trends=higher,
+        lower_tf_trends=lower,
+        indicators_by_tf=ind,
+        volume=None,
+        fundamentals=None,
+        microstructure=None,
+        fvg_aligns_long=False,
+        fvg_aligns_short=False,
+        liquidity=liquidity,
+        current_price=1.0,
+    )
+    assert "liquidity_sweep_setup_down" in out.reasons
+    assert out.short_score > 0
+
+
+def test_score_screener_liquidity_sweep_setup_up() -> None:
+    higher = {"4h": TrendSwingFeature(timeframe="4h", bias="bull")}
+    lower = {"1h": TrendSwingFeature(timeframe="1h", bias="neutral")}
+    ind = {"1h": PerTimeframeIndicators(timeframe="1h", rsi_14=45.0)}
+    liquidity = LiquidityLevelsFeature(
+        structure=LiquidityStructureComputed(
+            pattern="sweep_setup_up",
+            liquidity_line_high=1.03,
+        ),
+    )
+    out = score_screener(
+        higher_tf_trends=higher,
+        lower_tf_trends=lower,
+        indicators_by_tf=ind,
+        volume=None,
+        fundamentals=None,
+        microstructure=None,
+        fvg_aligns_long=False,
+        fvg_aligns_short=False,
+        liquidity=liquidity,
+        current_price=1.0,
+    )
+    assert "liquidity_sweep_setup_up" in out.reasons
+    assert out.long_score > 0

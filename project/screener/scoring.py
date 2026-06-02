@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from project.core.config import settings
 from project.screener.contracts import (
     FundamentalsFeature,
+    LiquidityLevelsFeature,
     MicrostructureFeature,
     PerTimeframeIndicators,
     ScreenerDecisionPayload,
@@ -17,6 +19,13 @@ def _bias_score(b: TrendBias) -> float:
     return {"bull": 1.0, "bear": -1.0, "neutral": 0.0}[b]
 
 
+def _near_liquidity_line(*, price: float, line: float) -> bool:
+    if price <= 0 or line <= 0:
+        return False
+    gap_pct = abs(price - line) / price
+    return gap_pct <= float(settings.LIQUIDITY_SWEEP_NEAR_PCT) + 1e-9
+
+
 def score_screener(
     *,
     higher_tf_trends: dict[str, TrendSwingFeature],
@@ -27,6 +36,8 @@ def score_screener(
     microstructure: MicrostructureFeature | None,
     fvg_aligns_long: bool | None,
     fvg_aligns_short: bool | None,
+    liquidity: LiquidityLevelsFeature | None = None,
+    current_price: float | None = None,
 ) -> ScreenerDecisionPayload:
     reasons: list[str] = []
 
@@ -92,6 +103,35 @@ def score_screener(
         if fundamentals.flag_undervalued_tvl:
             long_score += 0.4
             reasons.append("fundamentals_tvl_value")
+
+    if liquidity and liquidity.structure:
+        struct = liquidity.structure
+        price = current_price
+        deriv = liquidity.derivatives
+
+        if struct.pattern == "sweep_setup_down" and price and struct.liquidity_line_low:
+            if _near_liquidity_line(price=price, line=struct.liquidity_line_low):
+                short_score += 0.4
+                risk_score += 0.35
+                reasons.append("liquidity_sweep_setup_down")
+                if higher_bias == "bear":
+                    short_score += 0.25
+                if deriv and deriv.funding_crowded_long and deriv.oi_rising:
+                    risk_score += 0.4
+                    long_score *= 0.85
+                    reasons.append("funding_crowded_long")
+
+        if struct.pattern == "sweep_setup_up" and price and struct.liquidity_line_high:
+            if _near_liquidity_line(price=price, line=struct.liquidity_line_high):
+                long_score += 0.4
+                risk_score += 0.35
+                reasons.append("liquidity_sweep_setup_up")
+                if higher_bias == "bull":
+                    long_score += 0.25
+                if deriv and deriv.funding_crowded_short and deriv.oi_rising:
+                    risk_score += 0.4
+                    short_score *= 0.85
+                    reasons.append("funding_crowded_short")
 
     margin = long_score - short_score
     if risk_score >= 1.2 and margin < 1.0:
